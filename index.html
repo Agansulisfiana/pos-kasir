@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#ff5a1f">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>POS Kasir Sederhana</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./service-worker.js");
+}
+</script>
+  <aside class="sidebar">
+    <div class="brand">
+      <img class="logo" src="assets/matchatime-logo.svg" alt="Logo MatchaTime" />
+      <div>
+        <h1>MatchaTime</h1>
+        <p>POS Kasir</p>
+      </div>
+    </div>
+    <button class="nav active" data-page="dashboard">Dashboard</button>
+    <button class="nav" data-page="kasir">Kasir</button>
+    <button class="nav" data-page="produk">Produk</button>
+    <button class="nav" data-page="laporan">Laporan</button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h2 id="pageTitle">Dashboard</h2>
+        <p id="todayText"></p>
+      </div>
+      <button id="resetData" class="btn danger">Reset</button>
+    </header>
+
+    <section id="dashboard" class="page active">
+      <div class="stats">
+        <div class="stat"><span>Omzet Hari Ini</span><strong id="dashOmzet">Rp0</strong></div>
+        <div class="stat"><span>Laba Hari Ini</span><strong id="dashProfit">Rp0</strong></div>
+        <div class="stat"><span>Item Terjual</span><strong id="dashQty">0</strong></div>
+        <div class="stat"><span>Total Produk</span><strong id="dashProduct">0</strong></div>
+      </div>
+      <div class="card">
+        <h3>Transaksi Terbaru</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Tanggal</th><th>Produk</th><th>Keterangan</th><th>Qty</th><th>Total</th><th>Laba</th></tr></thead>
+            <tbody id="recentSales"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="kasir" class="page">
+      <div class="cashier-layout">
+        <div class="card product-picker-card">
+          <div class="card-title">
+            <h3>Pilih Item</h3>
+            <span class="muted">Tap produk untuk transaksi cepat</span>
+          </div>
+          <div id="cashierProducts" class="product-grid"></div>
+        </div>
+
+        <div class="card cashier-panel">
+          <h3>Transaksi Kasir</h3>
+          <form id="saleForm" class="stack-form">
+            <input type="hidden" id="saleProduct" required />
+            <div class="selected-product" id="selectedProduct">Belum ada produk dipilih</div>
+            <label>Jumlah
+              <input type="number" id="saleQty" min="1" value="1" required />
+            </label>
+            <label>Keterangan
+              <input type="text" id="saleNote" placeholder="Contoh: tanpa gula, meja 2" />
+            </label>
+            <button class="btn" type="submit">Tambah Transaksi</button>
+          </form>
+          <div class="divider"></div>
+          <h3>Nominal Manual</h3>
+          <form id="manualForm" class="stack-form">
+            <label>Nominal
+              <input type="number" id="manualAmount" placeholder="25000" min="1" required />
+            </label>
+            <label>Keterangan
+              <input type="text" id="manualNote" placeholder="Contoh: paket custom / biaya tambahan" required />
+            </label>
+            <button class="btn secondary" type="submit">Tambah Manual</button>
+          </form>
+          <div id="saleMessage" class="message"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="produk" class="page">
+      <div class="card product-form-card">
+        <h3>Tambah / Edit Produk</h3>
+        <form id="productForm" class="product-form">
+          <input type="hidden" id="editId" />
+          <label class="field-name">Nama Produk
+            <input type="text" id="productName" placeholder="Contoh: Matcha Latte" required />
+          </label>
+          <label>Harga Modal
+            <input type="number" id="costPrice" placeholder="8000" min="0" required />
+          </label>
+          <label>Harga Jual
+            <input type="number" id="sellPrice" placeholder="15000" min="0" required />
+          </label>
+          <label>Stok Awal
+            <input type="number" id="stockStart" placeholder="20" min="0" required />
+          </label>
+          <label class="field-media">URL Gambar
+            <input type="url" id="imageUrl" placeholder="https://contoh.com/produk.jpg" />
+          </label>
+          <label class="field-media">Upload Gambar
+            <input type="file" id="imageFile" accept="image/*" />
+          </label>
+          <div class="form-actions">
+            <button class="btn" type="submit">Simpan Produk</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <h3>Daftar Produk</h3>
+          <button id="exportProduct" class="btn secondary">Export CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Gambar</th>
+                <th>Produk</th>
+                <th>Modal</th>
+                <th>Jual</th>
+                <th>Margin</th>
+                <th>Stok Awal</th>
+                <th>Terjual</th>
+                <th>Stok Akhir</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="productTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="laporan" class="page">
+      <div class="card">
+        <div class="card-title">
+          <h3>Laporan Penjualan</h3>
+          <select id="reportType">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+
+        <div class="stats small">
+          <div class="stat"><span>Total Transaksi</span><strong id="reportTrx">0</strong></div>
+          <div class="stat"><span>Total Qty</span><strong id="reportQty">0</strong></div>
+          <div class="stat"><span>Total Omzet</span><strong id="reportRevenue">Rp0</strong></div>
+          <div class="stat"><span>Total Laba</span><strong id="reportProfit">Rp0</strong></div>
+        </div>
+
+        <button id="exportReport" class="btn secondary">Export Report CSV</button>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Produk</th>
+                <th>Keterangan</th>
+                <th>Qty</th>
+                <th>Modal</th>
+                <th>Jual</th>
+                <th>Omzet</th>
+                <th>Laba</th>
+              </tr>
+            </thead>
+            <tbody id="reportTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
