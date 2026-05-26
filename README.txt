@@ -1,4 +1,4 @@
-POS Kasir Sederhana - Qasir Style
+POS Kasir Sederhana
 
 Fitur:
 - Dashboard ringkas seperti aplikasi POS
