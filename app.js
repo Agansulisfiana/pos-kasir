@@ -1140,4 +1140,4 @@ document.getElementById("resetAllData").onclick = () => {
 };
 
 renderAll();
-setTimeout(downloadBackup,0);
+// setTimeout(downloadBackup,0);
