@@ -2,16 +2,24 @@
 <html lang="id">
 <head>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#ff5a1f">
+  <meta name="theme-color" content="#1f3a24">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>POS Kasir Sederhana</title>
+  <title>Daily Kopi ToGo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=Poppins:wght@600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="splash.css" />
 </head>
 <body>
+  <div id="splashScreen">
+    <div class="splash-content">
+      <img src="assets/logo matcha bee.jpg" alt="Daily Kopi ToGo" class="splash-logo" />
+      <h1>Daily Kopi ToGo</h1>
+      <p>Kasir &amp; Penjualan</p>
+    </div>
+  </div>
   <script>
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("./service-worker.js");
@@ -19,16 +27,17 @@ if ("serviceWorker" in navigator) {
 </script>
   <aside class="sidebar">
     <div class="brand">
-      <img class="logo" src="assets/Logo Matchatime.jpg " alt="Logo MatchaTime" />
+      <img class="logo" src="assets/logo matcha bee.jpg" alt="Logo Matcha Bee x Daily Kopi ToGo" />
       <div>
-        <h1>MatchaTime</h1>
-        <p>POS Kasir</p>
+        <h1>Daily Kopi ToGo</h1>
+        <p>Kasir &amp; Penjualan</p>
       </div>
     </div>
-    <button class="nav active" data-page="dashboard">Dashboard</button>
-    <button class="nav" data-page="kasir">Kasir</button>
-    <button class="nav" data-page="produk">Produk</button>
-    <button class="nav" data-page="laporan">Laporan</button>
+    <button class="nav active" data-page="dashboard">🏠 Dashboard</button>
+    <button class="nav" data-page="kasir">🛒 Kasir</button>
+    <button class="nav" data-page="produk">📦 Produk</button>
+    <button class="nav" data-page="laporan">📈 Laporan</button>
+    <button class="nav" data-page="pengaturan">⚙ Pengaturan</button>
   </aside>
 
   <main class="main">
@@ -37,7 +46,6 @@ if ("serviceWorker" in navigator) {
         <h2 id="pageTitle">Dashboard</h2>
         <p id="todayText"></p>
       </div>
-      <button id="resetData" class="btn danger">Reset</button>
     </header>
 
     <section id="dashboard" class="page active">
@@ -47,11 +55,34 @@ if ("serviceWorker" in navigator) {
         <div class="stat"><span>Item Terjual</span><strong id="dashQty">0</strong></div>
         <div class="stat"><span>Total Produk</span><strong id="dashProduct">0</strong></div>
       </div>
+      <div class="dashboard-grid">
+        <div class="card best-seller-card">
+          <div class="card-title">
+            <h3>Produk Terlaris</h3>
+            <span class="muted">Top 5 Produk Hari Ini</span>
+          </div>
+          <ol id="topProducts" class="top-products"></ol>
+        </div>
+        <div class="card stock-alert-card">
+          <div class="card-title">
+            <h3>Alert Stok Menipis</h3>
+            <span class="muted">Sisa stok &le; 5</span>
+          </div>
+          <div id="lowStockAlerts" class="stock-alerts"></div>
+        </div>
+        <div class="card sales-chart-card">
+          <div class="card-title">
+            <h3>Grafik Penjualan</h3>
+            <span class="muted">Penjualan 7 Hari Terakhir</span>
+          </div>
+          <div id="salesChart" class="sales-chart"></div>
+        </div>
+      </div>
       <div class="card">
         <h3>Transaksi Terbaru</h3>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Tanggal</th><th>Produk</th><th>Keterangan</th><th>Qty</th><th>Total</th><th>Laba</th></tr></thead>
+            <thead><tr><th>Tanggal</th><th>Produk</th><th>Keterangan</th><th>Bayar</th><th>Qty</th><th>Total</th><th>Laba</th><th>Struk</th></tr></thead>
             <tbody id="recentSales"></tbody>
           </table>
         </div>
@@ -79,19 +110,58 @@ if ("serviceWorker" in navigator) {
             <label>Keterangan
               <input type="text" id="saleNote" placeholder="Contoh: tanpa gula, meja 2" />
             </label>
-            <button class="btn" type="submit">Tambah Transaksi</button>
+            <button class="btn" type="submit">Tambah ke Keranjang</button>
           </form>
+          <details class="manual-toggle">
+            <summary>+ Tambah Nominal Manual</summary>
+            <form id="manualForm" class="stack-form">
+              <label>Nominal
+                <input type="text" id="manualAmount" class="money-input" inputmode="numeric" placeholder="25.000" autocomplete="off" required />
+              </label>
+              <label>Keterangan
+                <input type="text" id="manualNote" placeholder="Contoh: paket custom / biaya tambahan" required />
+              </label>
+              <button class="btn secondary" type="submit">Tambah Manual ke Keranjang</button>
+            </form>
+          </details>
           <div class="divider"></div>
-          <h3>Nominal Manual</h3>
-          <form id="manualForm" class="stack-form">
-            <label>Nominal
-              <input type="number" id="manualAmount" placeholder="25000" min="1" required />
+          <div class="card-title">
+            <h3>Keranjang Belanja</h3>
+            <button id="clearCart" class="link-button" type="button">Kosongkan</button>
+          </div>
+          <div id="cartItems" class="cart-items"></div>
+          <div class="cart-summary">
+            <span>Total Pembayaran</span>
+            <strong id="cartTotal">Rp0</strong>
+          </div>
+          <label>Metode Pembayaran
+            <select id="paymentMethod">
+              <option value="Cash">Cash</option>
+              <option value="QRIS">QRIS</option>
+            </select>
+          </label>
+          <div id="cashPayment" class="cash-payment">
+            <label>Uang Diterima
+              <input type="text" id="cashReceived" class="money-input" inputmode="numeric" placeholder="Contoh: 50.000" autocomplete="off" />
             </label>
-            <label>Keterangan
-              <input type="text" id="manualNote" placeholder="Contoh: paket custom / biaya tambahan" required />
+            <div class="cash-change">
+              <span>Kembalian</span>
+              <strong id="cashChange">Rp0</strong>
+            </div>
+          </div>
+          <div id="qrisPayment" class="qris-payment" hidden>
+            <div class="qris-payment-title">
+              <strong>Scan QRIS Pembayaran</strong>
+              <span class="muted">Tampilkan barcode Anda kepada pelanggan.</span>
+            </div>
+            <div id="qrisPreview" class="qris-preview"></div>
+            <label class="qris-upload">Upload Barcode QRIS
+              <input type="file" id="qrisImageFile" accept="image/*" />
             </label>
-            <button class="btn secondary" type="submit">Tambah Manual</button>
-          </form>
+            <button id="removeQrisImage" class="link-button" type="button">Hapus Barcode QRIS</button>
+          </div>
+          <button id="checkoutCart" class="btn checkout-btn" type="button">Checkout Keranjang</button>
+          <button id="printLastReceipt" class="btn secondary receipt-reprint-btn" type="button">Cetak Struk Terakhir</button>
           <div id="saleMessage" class="message"></div>
         </div>
       </div>
@@ -103,13 +173,17 @@ if ("serviceWorker" in navigator) {
         <form id="productForm" class="product-form">
           <input type="hidden" id="editId" />
           <label class="field-name">Nama Produk
-            <input type="text" id="productName" placeholder="Contoh: Matcha Latte" required />
+            <input type="text" id="productName" placeholder="Contoh: Kopi Susu" required />
+          </label>
+          <label>Kategori
+            <input type="text" id="productCategory" list="categoryList" placeholder="Contoh: Kopi" required />
+            <datalist id="categoryList"></datalist>
           </label>
           <label>Harga Modal
-            <input type="number" id="costPrice" placeholder="8000" min="0" required />
+            <input type="text" id="costPrice" class="money-input" inputmode="numeric" placeholder="8.000" autocomplete="off" required />
           </label>
           <label>Harga Jual
-            <input type="number" id="sellPrice" placeholder="15000" min="0" required />
+            <input type="text" id="sellPrice" class="money-input" inputmode="numeric" placeholder="15.000" autocomplete="off" required />
           </label>
           <label>Stok Awal
             <input type="number" id="stockStart" placeholder="20" min="0" required />
@@ -129,7 +203,7 @@ if ("serviceWorker" in navigator) {
       <div class="card">
         <div class="card-title">
           <h3>Daftar Produk</h3>
-          <button id="exportProduct" class="btn secondary">Export CSV</button>
+          <button id="exportProduct" class="btn secondary">Export Excel</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -137,6 +211,7 @@ if ("serviceWorker" in navigator) {
               <tr>
                 <th>Gambar</th>
                 <th>Produk</th>
+                <th>Kategori</th>
                 <th>Modal</th>
                 <th>Jual</th>
                 <th>Margin</th>
@@ -170,7 +245,7 @@ if ("serviceWorker" in navigator) {
           <div class="stat"><span>Total Laba</span><strong id="reportProfit">Rp0</strong></div>
         </div>
 
-        <button id="exportReport" class="btn secondary">Export Report CSV</button>
+        <button id="exportReport" class="btn secondary">Export Report Excel</button>
 
         <div class="table-wrap">
           <table>
@@ -179,11 +254,13 @@ if ("serviceWorker" in navigator) {
                 <th>Tanggal</th>
                 <th>Produk</th>
                 <th>Keterangan</th>
+                <th>Bayar</th>
                 <th>Qty</th>
                 <th>Modal</th>
                 <th>Jual</th>
                 <th>Omzet</th>
                 <th>Laba</th>
+                <th>Struk</th>
               </tr>
             </thead>
             <tbody id="reportTable"></tbody>
@@ -191,10 +268,167 @@ if ("serviceWorker" in navigator) {
         </div>
       </div>
     </section>
+
+    <section id="pengaturan" class="page">
+      <div class="settings-grid">
+        <div class="card setting-card">
+          <div class="setting-icon">🔐</div>
+          <div>
+            <h3>PIN Admin</h3>
+            <p>Atur atau ubah PIN Admin untuk melindungi menu reset data.</p>
+          </div>
+          <button id="openAdminPinDialog" class="btn secondary" type="button">Kelola PIN Admin</button>
+        </div>
+        <div class="card setting-card">
+          <div class="setting-icon">💾</div>
+          <div>
+            <h3>Backup &amp; Restore</h3>
+            <p>Backup JSON, restore JSON, dan export seluruh transaksi ke Excel.</p>
+          </div>
+          <button id="openDataToolsDialog" class="btn secondary" type="button">Buka Backup &amp; Restore</button>
+        </div>
+        <div class="card setting-card danger-setting">
+          <div class="setting-icon">⚠</div>
+          <div>
+            <h3>Reset Data</h3>
+            <p>Hapus produk, transaksi, atau keranjang secara terpisah. PIN Admin diperlukan.</p>
+          </div>
+          <button id="openResetDialog" class="btn danger" type="button">Buka Reset Data</button>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <div class="app-watermark">© 2026 Agan Sulisfiana. All Rights Reserved.</div>
+  <dialog id="receiptDialog" class="receipt-dialog">
+    <div class="receipt-dialog-header no-print">
+      <div>
+        <h3>Transaksi Berhasil</h3>
+        <p class="muted">Struk siap dicetak menggunakan printer thermal 58 mm.</p>
+      </div>
+      <button id="closeReceiptDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+    </div>
+    <div id="receiptPrintArea" class="receipt-paper"></div>
+    <div class="receipt-whatsapp no-print">
+      <label>No. WhatsApp Customer
+        <input type="tel" id="receiptCustomerWhatsapp" inputmode="tel" placeholder="Contoh: 081234567890" autocomplete="tel" />
+      </label>
+      <div id="receiptWhatsappMessage" class="pin-message"></div>
+    </div>
+    <div class="dialog-actions receipt-actions no-print">
+      <button id="closeReceiptButton" class="btn secondary" type="button">Tutup</button>
+      <button id="whatsappReceipt" class="btn secondary" type="button">Kirim WhatsApp</button>
+      <button id="printReceipt" class="btn" type="button">Cetak Struk</button>
+    </div>
+  </dialog>
+
+  <dialog id="dataToolsDialog" class="reset-dialog">
+    <div class="card-title">
+      <div>
+        <h3>Backup &amp; Restore</h3>
+        <p class="muted">Simpan cadangan JSON, pulihkan data, atau export seluruh penjualan ke Excel.</p>
+      </div>
+      <button id="closeDataToolsDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+    </div>
+    <div class="reset-options">
+      <button id="backupData" class="reset-option" type="button">
+        <strong>Backup JSON</strong>
+        <span>Download seluruh produk, transaksi, keranjang, dan barcode QRIS.</span>
+      </button>
+      <button id="restoreData" class="reset-option" type="button">
+        <strong>Restore JSON</strong>
+        <span>Pulihkan data aplikasi dari file backup JSON.</span>
+      </button>
+      <input id="restoreFile" class="visually-hidden" type="file" accept=".json,application/json" />
+      <button id="exportAllExcel" class="reset-option" type="button">
+        <strong>Export Excel</strong>
+        <span>Download seluruh riwayat transaksi penjualan dalam format Excel.</span>
+      </button>
+    </div>
+  </dialog>
+
+  <dialog id="adminPinDialog" class="reset-dialog pin-dialog">
+    <div class="card-title">
+      <div>
+        <h3 id="adminPinTitle">Buat PIN Admin</h3>
+        <p id="adminPinHelp" class="muted">PIN digunakan untuk melindungi menu reset data.</p>
+      </div>
+      <button id="closeAdminPinDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+    </div>
+    <form id="adminPinForm" class="dialog-form">
+      <label id="currentPinField" hidden>PIN Saat Ini
+        <input type="password" id="currentAdminPin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="current-password" />
+      </label>
+      <label>PIN Baru
+        <input type="password" id="newAdminPin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="new-password" required />
+      </label>
+      <label>Ulangi PIN Baru
+        <input type="password" id="confirmAdminPin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="new-password" required />
+      </label>
+      <div id="adminPinMessage" class="pin-message"></div>
+      <div class="dialog-actions">
+        <button id="cancelAdminPin" class="btn secondary" type="button">Batal</button>
+        <button class="btn" type="submit">Simpan PIN</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="resetAuthDialog" class="reset-dialog pin-dialog">
+    <div class="card-title">
+      <div>
+        <h3>PIN Admin Diperlukan</h3>
+        <p class="muted">Masukkan PIN Admin untuk membuka menu reset data.</p>
+      </div>
+      <button id="closeResetAuthDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+    </div>
+    <form id="resetAuthForm" class="dialog-form">
+      <label>PIN Admin
+        <input type="password" id="resetAdminPin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="current-password" required />
+      </label>
+      <div id="resetAuthMessage" class="pin-message"></div>
+      <div class="dialog-actions">
+        <button id="cancelResetAuth" class="btn secondary" type="button">Batal</button>
+        <button class="btn" type="submit">Buka Menu Reset</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="resetDialog" class="reset-dialog">
+    <div class="card-title">
+      <div>
+        <h3>Reset Data</h3>
+        <p class="muted">Pilih data yang ingin dihapus. Data lainnya tetap tersimpan.</p>
+      </div>
+      <button id="closeResetDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+    </div>
+    <div class="reset-options">
+      <button id="resetProducts" class="reset-option" type="button">
+        <strong>Reset Produk</strong>
+        <span>Hapus katalog produk dan item produk di keranjang. Dashboard dan laporan tetap tersimpan.</span>
+      </button>
+      <button id="resetTransactions" class="reset-option" type="button">
+        <strong>Reset Transaksi</strong>
+        <span>Hapus riwayat dashboard dan laporan. Produk serta keranjang tetap tersimpan.</span>
+      </button>
+      <button id="resetCart" class="reset-option" type="button">
+        <strong>Reset Keranjang</strong>
+        <span>Kosongkan keranjang kasir tanpa menghapus produk atau laporan.</span>
+      </button>
+      <button id="resetAllData" class="reset-option danger-option" type="button">
+        <strong>Reset Semua Data</strong>
+        <span>Hapus produk, transaksi, keranjang, dan barcode QRIS sekaligus.</span>
+      </button>
+    </div>
+  </dialog>
+
+  <div class="app-watermark">&copy; 2026 Agan Sulisfiana. All Rights Reserved.</div>
 
   <script src="app.js"></script>
+  <script>
+    window.addEventListener("load", () => {
+      setTimeout(() => {
+        document.body.classList.add("loaded");
+      }, 1200);
+    });
+  </script>
 </body>
 </html>
