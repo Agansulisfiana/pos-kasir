@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1f3a24">
+  <meta name="theme-color" content="#143821">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Daily Kopi ToGo</title>
@@ -27,17 +27,39 @@ if ("serviceWorker" in navigator) {
 </script>
   <aside class="sidebar">
     <div class="brand">
-      <img class="logo" src="assets/logo matcha bee.jpg" alt="Logo Matcha Bee x Daily Kopi ToGo" />
-      <div>
+      <div class="brand-logo-frame">
+        <img class="logo" src="assets/logo matcha bee.jpg" alt="Logo Matcha Bee x Daily Kopi ToGo" />
+      </div>
+      <div class="brand-copy">
         <h1>Daily Kopi ToGo</h1>
         <p>Kasir &amp; Penjualan</p>
       </div>
     </div>
-    <button class="nav active" data-page="dashboard">🏠 Dashboard</button>
-    <button class="nav" data-page="kasir">🛒 Kasir</button>
-    <button class="nav" data-page="produk">📦 Produk</button>
-    <button class="nav" data-page="laporan">📈 Laporan</button>
-    <button class="nav" data-page="pengaturan">⚙ Pengaturan</button>
+    <button class="nav active" data-page="dashboard" data-page-title="Dashboard">
+      <span class="nav-icon" id="navDashboardIcon" aria-hidden="true"></span>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav" data-page="kasir" data-page-title="Kasir">
+      <span class="nav-icon" id="navCashierIcon" aria-hidden="true"></span>
+      <span>Kasir</span>
+    </button>
+    <button class="nav" data-page="produk" data-page-title="Produk">
+      <span class="nav-icon" id="navProductIcon" aria-hidden="true"></span>
+      <span>Produk</span>
+    </button>
+    <button class="nav" data-page="laporan" data-page-title="Laporan">
+      <span class="nav-icon" id="navReportIcon" aria-hidden="true"></span>
+      <span>Laporan</span>
+    </button>
+    <button class="nav" data-page="pengaturan" data-page-title="Pengaturan">
+      <span class="nav-icon" id="navSettingsIcon" aria-hidden="true"></span>
+      <span>Pengaturan</span>
+    </button>
+    <footer class="app-watermark">
+      <strong>Daily Kopi ToGo POS</strong>
+      <span>Version 1.0.0</span>
+      <!-- <span>Developed by Agan Sulisfiana</span> -->
+    </footer>
   </aside>
 
   <main class="main">
@@ -50,10 +72,11 @@ if ("serviceWorker" in navigator) {
 
     <section id="dashboard" class="page active dashboard-page">
       <div class="dashboard-toolbar">
-        <button class="dashboard-filter-button" type="button" disabled>
+        <label class="dashboard-filter-button dashboard-date-picker">
           <span id="dashboardCalendarIcon"></span>
           <strong id="dashboardToolbarDate">Hari ini</strong>
-        </button>
+          <input type="date" id="dashboardDate" aria-label="Pilih tanggal dashboard" />
+        </label>
         <label class="dashboard-toolbar-select">
           <span class="visually-hidden">Rentang dashboard</span>
           <select id="dashboardRange">
@@ -318,7 +341,7 @@ if ("serviceWorker" in navigator) {
         <div class="product-form-header">
           <div>
             <h3 id="productFormTitle">Tambah Produk</h3>
-            <p>Isi detail produk tanpa mengubah format data backup lama.</p>
+            <p id="productFormHelp">Isi detail produk tanpa mengubah format data backup lama.</p>
           </div>
           <button id="closeProductForm" class="dialog-close" type="button" aria-label="Tutup">x</button>
         </div>
@@ -327,28 +350,32 @@ if ("serviceWorker" in navigator) {
           <label class="field-name">Nama Produk
             <input type="text" id="productName" placeholder="Contoh: Kopi Susu" required />
           </label>
-          <label>Kategori
+          <label class="field-category">Kategori
             <input type="text" id="productCategory" list="categoryList" placeholder="Contoh: Kopi" required />
             <datalist id="categoryList"></datalist>
           </label>
-          <label>Harga Modal
+          <label class="field-cost">Harga Modal
             <input type="text" id="costPrice" class="money-input" inputmode="numeric" placeholder="8.000" autocomplete="off" required />
           </label>
-          <label>Harga Jual
+          <label class="field-price">Harga Jual
             <input type="text" id="sellPrice" class="money-input" inputmode="numeric" placeholder="15.000" autocomplete="off" required />
           </label>
-          <label>Stok Awal
+          <label class="field-stock-start">Stok Awal
             <input type="number" id="stockStart" placeholder="20" min="0" required />
           </label>
-          <label class="field-media">URL Gambar
+          <label id="stockAddField" class="field-stock-add" hidden>Tambah Stok
+            <input type="number" id="stockAdd" placeholder="0" min="0" value="0" />
+            <small id="stockAddPreview" class="stock-add-preview">Stok saat ini tetap 0</small>
+          </label>
+          <label class="field-media field-image-url">URL Gambar
             <input type="url" id="imageUrl" placeholder="https://contoh.com/produk.jpg" />
           </label>
-          <label class="field-media">Upload Gambar
+          <label class="field-media field-image-upload">Upload Gambar
             <input type="file" id="imageFile" accept="image/*" />
           </label>
           <div class="form-actions">
             <button id="cancelProductForm" class="btn secondary" type="button">Batal</button>
-            <button class="btn" type="submit">Simpan Produk</button>
+            <button id="productSubmitButton" class="btn" type="submit">Simpan Produk</button>
           </div>
         </form>
       </div>
@@ -404,10 +431,6 @@ if ("serviceWorker" in navigator) {
 
     <section id="laporan" class="page report-page">
       <div class="report-toolbar">
-        <button class="report-filter-button" type="button" disabled>
-          <span id="reportToolbarCalendarIcon" class="report-toolbar-icon"></span>
-          <strong id="reportToolbarDate">Hari ini</strong>
-        </button>
         <label class="report-toolbar-select">
           <span class="visually-hidden">Periode laporan</span>
           <select id="reportType">
@@ -483,6 +506,20 @@ if ("serviceWorker" in navigator) {
         </div>
       </div>
 
+      <div class="card report-product-card">
+        <div class="report-card-title">
+          <div>
+            <h3>Ringkasan Produk Terjual</h3>
+            <p>Sales by product pada periode laporan</p>
+          </div>
+          <div class="report-product-total">
+            <span id="reportProductTotalIcon"></span>
+            <strong id="reportProductQtyTotal">0 item</strong>
+          </div>
+        </div>
+        <div id="reportProductSummary" class="report-product-summary"></div>
+      </div>
+
       <div class="card report-table-card">
         <div class="table-wrap report-table-wrap">
           <table class="report-table">
@@ -509,7 +546,7 @@ if ("serviceWorker" in navigator) {
     <section id="pengaturan" class="page">
       <div class="settings-grid">
         <div class="card setting-card">
-          <div class="setting-icon">🔐</div>
+          <div class="setting-icon" id="settingsPinIcon" aria-hidden="true"></div>
           <div>
             <h3>PIN Admin</h3>
             <p>Atur atau ubah PIN Admin untuk melindungi menu reset data.</p>
@@ -517,7 +554,7 @@ if ("serviceWorker" in navigator) {
           <button id="openAdminPinDialog" class="btn secondary" type="button">Kelola PIN Admin</button>
         </div>
         <div class="card setting-card">
-          <div class="setting-icon">💾</div>
+          <div class="setting-icon" id="settingsBackupIcon" aria-hidden="true"></div>
           <div>
             <h3>Backup &amp; Restore</h3>
             <p>Backup JSON, restore JSON, dan export seluruh transaksi ke Excel.</p>
@@ -525,12 +562,20 @@ if ("serviceWorker" in navigator) {
           <button id="openDataToolsDialog" class="btn secondary" type="button">Buka Backup &amp; Restore</button>
         </div>
         <div class="card setting-card danger-setting">
-          <div class="setting-icon">⚠</div>
+          <div class="setting-icon" id="settingsResetIcon" aria-hidden="true"></div>
           <div>
             <h3>Reset Data</h3>
             <p>Hapus produk, transaksi, atau keranjang secara terpisah. PIN Admin diperlukan.</p>
           </div>
           <button id="openResetDialog" class="btn danger" type="button">Buka Reset Data</button>
+        </div>
+        <div class="card setting-card">
+          <div class="setting-icon setting-info-icon" aria-hidden="true">i</div>
+          <div>
+            <h3>Tentang Aplikasi</h3>
+            <p>Informasi versi aplikasi, developer, dan kredit penggunaan.</p>
+          </div>
+          <button id="openAboutAppDialog" class="btn secondary" type="button">Buka Tentang Aplikasi</button>
         </div>
       </div>
     </section>
@@ -590,6 +635,35 @@ if ("serviceWorker" in navigator) {
           <small>Download seluruh riwayat transaksi penjualan dalam format Excel.</small>
         </span>
       </button>
+    </div>
+  </dialog>
+
+  <dialog id="aboutAppDialog" class="reset-dialog utility-dialog about-app-dialog">
+    <div class="utility-header">
+      <div class="utility-header-icon about-app-mark" aria-hidden="true">i</div>
+      <div class="utility-header-copy">
+        <h3>Tentang Aplikasi</h3>
+        <p>Informasi identitas Daily Kopi ToGo POS.</p>
+      </div>
+      <button id="closeAboutAppDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+    </div>
+    <div class="about-app-body">
+      <div class="about-hero">
+        <div class="about-logo-badge">
+          <img src="assets/logo matcha bee.jpg" alt="DailyKopiToGo POS" />
+        </div>
+        <div class="about-copy">
+          <span class="about-kicker">Matcha Bee Edition</span>
+          <strong>DailyKopiToGo POS</strong>
+          <p>Kasir ringan untuk jualan harian yang cepat, rapi, dan gampang dipakai.</p>
+          <span class="about-version">Version 1.0.0</span>
+        </div>
+      </div>
+      <div class="about-credit-card">
+        <small>Developed by</small>
+        <b>Agan Sulisfiana</b>
+      </div>
+      <em>&copy; 2026 All Rights Reserved</em>
     </div>
   </dialog>
 
@@ -719,8 +793,6 @@ if ("serviceWorker" in navigator) {
       </div>
     </form>
   </dialog>
-
-  <div class="app-watermark">&copy; 2026 Agan Sulisfiana. All Rights Reserved.</div>
 
   <script src="app.js"></script>
   <script>

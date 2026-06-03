@@ -8,18 +8,27 @@ dipakai tanpa database atau server.
 FITUR UTAMA
 
 1. Dashboard Profesional
-- Tampilan dashboard modern dengan kartu ringkasan.
-- Menampilkan omzet hari ini, laba hari ini, item terjual, dan total produk.
-- Grafik penjualan default 5 hari terakhir.
+- Tampilan dashboard profesional dengan warna netral, kartu ringkasan yang
+  lebih rapat, dan visual yang lebih fokus pada data operasional.
+- Menampilkan omzet, laba, item terjual, dan total produk berdasarkan tanggal
+  dashboard yang dipilih.
+- Tanggal dashboard bisa dipilih langsung dari toolbar.
+- Tombol refresh dashboard membaca ulang data dari LocalStorage dan merender
+  ulang tampilan dashboard, produk, kasir, dan keranjang.
+- Grafik penjualan default 5 hari terakhir dari tanggal yang dipilih.
 - Grafik bisa diganti berdasarkan Omzet, Laba, atau Qty.
 - Ringkasan penjualan berdasarkan metode pembayaran.
-- Top 5 produk terlaris hari ini.
+- Top 5 produk terlaris pada tanggal yang dipilih.
 - Alert stok menipis dengan shortcut ke menu produk.
-- Ringkasan hari ini: total transaksi, rata-rata transaksi, item per transaksi,
-  dan total laba hari ini.
+- Ringkasan tanggal pilihan: total transaksi, rata-rata transaksi, item per
+  transaksi, dan total laba.
 
 2. Menu Kasir
 - Layout kasir dua area: daftar produk dan transaksi kasir.
+- Tampilan kasir dibuat lebih bersih dengan produk, kategori, keranjang, dan
+  tombol bayar yang lebih tegas untuk alur kerja kasir harian.
+- Pada tampilan desktop, panel Transaksi Kasir tetap di posisi kanan.
+- Daftar pilihan produk memiliki scroll sendiri saat produk banyak.
 - Pencarian produk berdasarkan nama.
 - Filter kategori produk.
 - Klik produk untuk langsung menambahkan item ke keranjang.
@@ -36,19 +45,28 @@ FITUR UTAMA
 - Tambah, edit, dan hapus produk.
 - Data produk mencakup nama, kategori, harga modal, harga jual, gambar produk,
   dan stok awal.
+- Saat edit produk/stok, stok awal dikunci agar tidak mengubah data awal.
+- Tambah Stok digunakan untuk menambahkan stok masuk; rumus stok akhir adalah
+  stok awal + stok masuk - stok terjual.
+- Layout edit stok dirapikan agar field tambah stok, URL gambar, upload gambar,
+  dan tombol simpan tersusun jelas.
 - Format titik ribuan otomatis untuk input nominal uang.
 - Perhitungan margin/laba otomatis.
-- Menampilkan stok awal, terjual, dan stok akhir.
+- Menampilkan stok awal, stok masuk, terjual, dan stok akhir.
 - Export data produk ke Excel.
 
 4. Laporan
-- Tampilan laporan modern dengan toolbar tanggal, periode, dan tombol refresh.
+- Tampilan laporan modern dengan toolbar periode dan tombol refresh.
 - Filter laporan: Daily, Weekly, dan Monthly.
+- Kontrol periode laporan dibuat ringkas agar tidak terlalu melebar.
 - Kartu ringkasan: total transaksi, total qty, total omzet, dan total laba.
+- Ringkasan produk terjual menampilkan total item dan top produk berdasarkan
+  qty, omzet, dan laba.
 - Tabel laporan dengan tanggal, produk, keterangan, metode bayar, qty, modal,
   jual, omzet, laba, dan tombol cetak struk.
 - Empty state khusus saat belum ada transaksi pada periode terpilih.
-- Export laporan periode ke Excel.
+- Export laporan periode ke Excel dibuat dalam 1 sheet dengan 3 bagian:
+  Detail Transaksi, Ringkasan Produk Terjual, dan Ringkasan Keuangan.
 
 5. Struk Transaksi
 - Template struk Daily Kopi ToGo untuk printer thermal 58 mm.
@@ -64,6 +82,9 @@ FITUR UTAMA
 - Restore data dari file JSON.
 - Export seluruh riwayat transaksi ke Excel.
 - Reset data dengan pilihan granular dan perlindungan PIN Admin.
+- Tentang Aplikasi menampilkan nama aplikasi, versi, developer, dan copyright
+  dalam dialog brand yang lebih modern dengan kontras teks yang lebih jelas.
+- Menu pengaturan memakai icon konsisten agar terlihat lebih profesional.
 
 7. Reset Data Aman
 - Reset data tidak langsung menghapus semua data.
@@ -83,6 +104,21 @@ FITUR UTAMA
 - Barcode QRIS disimpan di LocalStorage dengan key pos_qris_image.
 - PIN Admin disimpan sebagai hash SHA-256 di pos_admin_pin_hash.
 - Backup JSON menjaga kompatibilitas data produk dan transaksi yang sudah dibuat.
+
+9. Footer Aplikasi
+- Footer aplikasi menampilkan nama Daily Kopi ToGo POS.
+- Menampilkan versi aplikasi 1.0.0.
+- Menampilkan kredit Developed by Agan Sulisfiana.
+- Footer ditempatkan di bagian bawah sidebar kiri dengan teks putih agar
+  terlihat rapi dan tidak menimpa konten.
+
+10. Identitas Brand
+- Logo Matcha Bee di sidebar ditampilkan dalam frame khusus agar terlihat
+  menyatu dengan sidebar.
+- Ukuran sidebar tetap compact, sedangkan logo Matcha Bee dipertahankan dalam
+  brand card besar agar identitas toko tetap kuat.
+- Navigasi sidebar memakai icon SVG konsisten tanpa emoji.
+- Asset logo Matcha Bee ikut disimpan dalam cache service worker.
 
 
 CARA MENJALANKAN
@@ -135,4 +171,6 @@ CATATAN
 - Lakukan backup JSON secara berkala dari menu Pengaturan.
 - Cocok untuk kasir sederhana, usaha kecil, dan penggunaan lokal.
 
-Copyright © 2026 Agan Sulisfiana
+Daily Kopi ToGo POS
+Version 1.0.0
+Developed by Agan Sulisfiana

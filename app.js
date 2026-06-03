@@ -30,6 +30,7 @@ const normalizeProduct = p => ({
   costPrice:nonNegative(p.costPrice),
   sellPrice:nonNegative(p.sellPrice),
   stockStart:nonNegative(p.stockStart),
+  stockAdded:nonNegative(p.stockAdded),
   imageUrl:typeof p.imageUrl === "string" ? p.imageUrl : ""
 });
 const normalizeSale = sale => ({
@@ -75,6 +76,7 @@ let productStockFilter = "all";
 let productSortMode = "name-asc";
 let productViewMode = "grid";
 let productPage = 1;
+let dashboardDateKey = "";
 
 const save = () => {
   localStorage.setItem("pos_products", JSON.stringify(products));
@@ -104,7 +106,8 @@ const productCategory = p => p.category || "Umum";
 const salePayment = sale => sale.paymentMethod || "-";
 const transactionKey = sale => sale.transactionId || sale.id;
 const soldQty = id => sales.filter(s=>s.productId===id).reduce((a,b)=>a+Number(b.qty||0),0);
-const stockEnd = p => Number(p.stockStart||0) - soldQty(p.id);
+const stockIn = p => Number(p.stockAdded||0);
+const stockEnd = p => Number(p.stockStart||0) + stockIn(p) - soldQty(p.id);
 const cartQty = id => cart.filter(item=>item.productId===id).reduce((a,b)=>a+Number(b.qty||0),0);
 const availableStock = p => stockEnd(p) - cartQty(p.id);
 const profitPerItem = p => Number(p.sellPrice||0) - Number(p.costPrice||0);
@@ -360,11 +363,12 @@ function productCard(product){
     </div>
     <div class="product-card-meta">
       <span>Modal ${rupiah(product.costPrice)}</span>
+      <span>Masuk +${stockIn(product)}</span>
       <span>Margin ${productMarginPercent(product)}%</span>
     </div>
     <div class="product-card-actions">
       <button type="button" data-edit-product="${escapeHtml(product.id)}">${resetIcon("edit")}Edit</button>
-      <button type="button" data-edit-product="${escapeHtml(product.id)}">${resetIcon("cube")}Stok</button>
+      <button type="button" data-stock-product="${escapeHtml(product.id)}">${resetIcon("cube")}Stok</button>
       <button type="button" data-delete-product="${escapeHtml(product.id)}" aria-label="Hapus ${escapeHtml(product.name)}">${resetIcon("trash")}</button>
     </div>
   </article>`;
@@ -612,6 +616,27 @@ function localDateKey(date){
   return `${year}-${month}-${day}`;
 }
 
+function dateFromLocalKey(key){
+  const [year,month,day] = String(key || "").split("-").map(Number);
+  const date = new Date(year,month-1,day);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
+}
+
+function salesForDateKey(key){
+  return sales.filter(sale=>{
+    const date = new Date(sale.date);
+    return !Number.isNaN(date.getTime()) && localDateKey(date) === key;
+  });
+}
+
+function refreshStoredData(){
+  products = readArrayStorage("pos_products").filter(isRecord).map(normalizeProduct);
+  sales = readArrayStorage("pos_sales").filter(isRecord).map(normalizeSale);
+  cart = readArrayStorage("pos_cart").filter(isRecord).map(normalizeCartItem);
+  qrisImage = normalizeQrisImage(readStorage("pos_qris_image",""));
+  adminPinHash = normalizePinHash(readStorage("pos_admin_pin_hash",""));
+}
+
 function renderTopProducts(today){
   const totals = new Map();
   today.filter(s=>s.productId).forEach(s=>{
@@ -628,7 +653,7 @@ function renderTopProducts(today){
     .slice(0,5);
   const list = document.getElementById("topProducts");
   if(topProducts.length===0){
-    list.innerHTML = '<li class="dashboard-empty">Belum ada produk terjual hari ini.</li>';
+    list.innerHTML = '<li class="dashboard-empty">Belum ada produk terjual pada tanggal ini.</li>';
     return;
   }
   list.innerHTML = topProducts.map((item,index)=>`<li class="top-product-row">
@@ -662,9 +687,10 @@ function renderLowStockAlerts(){
 function renderSalesChart(){
   const range = Number(document.getElementById("dashboardRange")?.value || 5);
   const metric = document.getElementById("dashboardChartMetric")?.value || "revenue";
+  const selectedDate = dateFromLocalKey(dashboardDateKey || localDateKey(new Date()));
   const days = [];
   for(let offset=range-1;offset>=0;offset--){
-    const date = new Date();
+    const date = new Date(selectedDate);
     date.setHours(0,0,0,0);
     date.setDate(date.getDate()-offset);
     days.push({date,key:localDateKey(date),revenue:0,profit:0,qty:0});
@@ -727,10 +753,10 @@ function renderSalesChart(){
 }
 
 function percentChange(current, previous){
-  if(previous<=0) return current>0 ? "↑ Baru hari ini" : "↑ 0% dari kemarin";
+  if(previous<=0) return current>0 ? "Baru pada tanggal ini" : "0% dari hari sebelumnya";
   const percent = ((current-previous)/previous)*100;
-  const arrow = percent>=0 ? "↑" : "↓";
-  return `${arrow} ${Math.abs(percent).toFixed(1)}% dari kemarin`;
+  const arrow = percent>=0 ? "Naik" : "Turun";
+  return `${arrow} ${Math.abs(percent).toFixed(1)}% dari hari sebelumnya`;
 }
 
 function renderPaymentSummary(today){
@@ -779,7 +805,7 @@ function renderPaymentSummary(today){
         <small>${percent.toFixed(1)}%</small>
       </span>
     </div>`;
-  }).join("") : '<div class="dashboard-empty">Belum ada pembayaran hari ini.</div>'}</div>`;
+  }).join("") : '<div class="dashboard-empty">Belum ada pembayaran pada tanggal ini.</div>'}</div>`;
 }
 
 function renderTodaySummary(today){
@@ -806,27 +832,81 @@ function renderTodaySummary(today){
   </div>
   <div class="today-summary-row">
     <span>${resetIcon("trend")}</span>
-    <strong>Total Laba Hari Ini</strong>
+    <strong>Total Laba Tanggal Ini</strong>
     <b>${rupiah(profitTotal)}</b>
   </div>`;
 }
 
-function renderDashboard(){
-  const today = filterSales("daily");
-  const yesterday = sales.filter(s=>{
-    const date = new Date(s.date);
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate()-1);
-    return !Number.isNaN(date.getTime()) && localDateKey(date)===localDateKey(yesterdayDate);
+function productSalesSummary(data){
+  const byProduct = new Map();
+  data.forEach(sale=>{
+    const key = sale.productId || `${sale.productName}-${sale.category || "Umum"}`;
+    const current = byProduct.get(key) || {
+      productName:sale.productName,
+      category:sale.category || "Umum",
+      qty:0,
+      revenue:0,
+      cost:0,
+      profit:0
+    };
+    const qty = Number(sale.qty||0);
+    current.qty += qty;
+    current.revenue += Number(sale.revenue||0);
+    current.cost += Number(sale.costPrice||0) * qty;
+    current.profit += Number(sale.profit||0);
+    byProduct.set(key,current);
   });
+  return [...byProduct.values()].sort((a,b)=>b.qty-a.qty || b.revenue-a.revenue || a.productName.localeCompare(b.productName,"id"));
+}
+
+function renderReportProductSummary(data){
+  const summary = productSalesSummary(data);
+  const totalQty = summary.reduce((sum,item)=>sum+item.qty,0);
+  document.getElementById("reportProductQtyTotal").textContent = `${totalQty} item`;
+  const box = document.getElementById("reportProductSummary");
+  if(summary.length===0){
+    box.innerHTML = '<div class="dashboard-empty">Belum ada produk terjual pada periode ini.</div>';
+    return;
+  }
+  box.innerHTML = summary.slice(0,5).map((item,index)=>`<div class="report-product-row">
+    <span class="report-product-rank">${index+1}</span>
+    <span class="report-product-name">
+      <strong>${escapeHtml(item.productName)}</strong>
+      <small>${escapeHtml(item.category)}</small>
+    </span>
+    <span class="report-product-metric">
+      <b>${item.qty} item</b>
+      <small>Qty</small>
+    </span>
+    <span class="report-product-metric">
+      <b>${rupiah(item.revenue)}</b>
+      <small>Omzet</small>
+    </span>
+    <span class="report-product-metric">
+      <b>${rupiah(item.profit)}</b>
+      <small>Laba</small>
+    </span>
+  </div>`).join("");
+}
+
+function renderDashboard(){
+  if(!dashboardDateKey) dashboardDateKey = localDateKey(new Date());
+  const selectedDate = dateFromLocalKey(dashboardDateKey);
+  const previousDate = new Date(selectedDate);
+  previousDate.setDate(selectedDate.getDate()-1);
+  const today = salesForDateKey(dashboardDateKey);
+  const yesterday = salesForDateKey(localDateKey(previousDate));
   const todayRevenue = today.reduce((a,b)=>a+Number(b.revenue||0),0);
   const todayProfit = today.reduce((a,b)=>a+Number(b.profit||0),0);
   const todayQty = today.reduce((a,b)=>a+Number(b.qty||0),0);
   const yesterdayRevenue = yesterday.reduce((a,b)=>a+Number(b.revenue||0),0);
   const yesterdayProfit = yesterday.reduce((a,b)=>a+Number(b.profit||0),0);
   const yesterdayQty = yesterday.reduce((a,b)=>a+Number(b.qty||0),0);
-  const todayDate = new Date();
-  document.getElementById("dashboardToolbarDate").textContent = todayDate.toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
+  const dashboardDateInput = document.getElementById("dashboardDate");
+  if(dashboardDateInput) dashboardDateInput.value = dashboardDateKey;
+  document.getElementById("dashboardToolbarDate").textContent = selectedDate.toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
+  const dashboardMiniFilter = document.querySelector(".dashboard-mini-filter");
+  if(dashboardMiniFilter) dashboardMiniFilter.textContent = localDateKey(new Date()) === dashboardDateKey ? "Hari Ini" : "Tanggal Dipilih";
   document.getElementById("dashOmzet").textContent = rupiah(todayRevenue);
   document.getElementById("dashProfit").textContent = rupiah(todayProfit);
   document.getElementById("dashQty").textContent = todayQty;
@@ -869,7 +949,6 @@ function renderReport(){
   const revenueTotal = data.reduce((a,b)=>a+Number(b.revenue||0),0);
   const profitTotal = data.reduce((a,b)=>a+Number(b.profit||0),0);
   const periodLabels = {daily:"Daily",weekly:"Weekly",monthly:"Monthly"};
-  const today = new Date();
   document.getElementById("reportTrx").textContent = transactionCount;
   document.getElementById("reportQty").textContent = qtyTotal;
   document.getElementById("reportRevenue").textContent = rupiah(revenueTotal);
@@ -877,7 +956,7 @@ function renderReport(){
   document.getElementById("reportTrxCaption").textContent = `${transactionCount} transaksi`;
   document.getElementById("reportQtyCaption").textContent = `${qtyTotal} item`;
   document.getElementById("reportPeriodLabel").textContent = periodLabels[type] || "Daily";
-  document.getElementById("reportToolbarDate").textContent = today.toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
+  renderReportProductSummary(data);
 
   const body = document.getElementById("reportTable");
   body.innerHTML = "";
@@ -913,6 +992,14 @@ function renderReport(){
       <td>${action}</td>
     </tr>`;
   });
+}
+
+function refreshDashboardData(){
+  refreshStoredData();
+  renderDashboard();
+  renderProductSummary();
+  renderCashierProducts();
+  renderCart();
 }
 
 function renderAll(){
@@ -959,10 +1046,18 @@ function changeCartItem(id, difference){
   renderAll();
 }
 
-function editProduct(id){
+function updateStockAddPreview(){
+  const id = document.getElementById("editId").value;
+  const product = products.find(p=>p.id===id);
+  const addStock = nonNegative(document.getElementById("stockAdd").value);
+  const currentStock = product ? stockEnd(product) : nonNegative(document.getElementById("stockStart").value);
+  document.getElementById("stockAddPreview").textContent = `Stok saat ini akan menjadi ${currentStock + addStock}`;
+}
+
+function editProduct(id, mode="edit"){
   const p = products.find(x=>x.id===id);
   if(!p) return;
-  openProductForm("edit");
+  openProductForm(mode);
   document.getElementById("editId").value = p.id;
   document.getElementById("productName").value = p.name;
   document.getElementById("productCategory").value = productCategory(p);
@@ -970,6 +1065,8 @@ function editProduct(id){
   document.getElementById("sellPrice").value = formatMoneyInput(p.sellPrice);
   document.getElementById("imageUrl").value = p.imageUrl && !p.imageUrl.startsWith("data:") ? p.imageUrl : "";
   document.getElementById("stockStart").value = p.stockStart;
+  document.getElementById("stockAdd").value = 0;
+  updateStockAddPreview();
   document.querySelector('[data-page="produk"]').click();
   document.getElementById("productFormCard").scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -984,18 +1081,30 @@ function deleteProduct(id){
 
 function openProductForm(mode="add"){
   document.getElementById("productFormCard").hidden = false;
-  document.getElementById("productFormTitle").textContent = mode==="edit" ? "Edit Produk" : "Tambah Produk";
+  const isEdit = mode!=="add";
+  document.getElementById("productFormCard").dataset.mode = mode;
+  document.getElementById("productFormTitle").textContent = mode==="stock" ? "Edit Stok Produk" : isEdit ? "Edit Produk" : "Tambah Produk";
+  document.getElementById("productFormHelp").textContent = isEdit ? "Kelola detail produk dan tambahkan stok masuk tanpa mengubah stok awal." : "Isi detail produk tanpa mengubah format data backup lama.";
+  document.getElementById("productSubmitButton").textContent = mode==="stock" ? "Simpan Stok" : isEdit ? "Simpan Perubahan" : "Simpan Produk";
+  document.getElementById("stockStart").readOnly = isEdit;
+  document.getElementById("stockAddField").hidden = !isEdit;
   if(mode==="add"){
     document.getElementById("productForm").reset();
     document.getElementById("editId").value = "";
+    document.getElementById("stockStart").readOnly = false;
   }
 }
 
 function closeProductForm(){
   document.getElementById("productForm").reset();
   document.getElementById("editId").value = "";
+  document.getElementById("stockStart").readOnly = false;
+  document.getElementById("stockAddField").hidden = true;
   document.getElementById("productFormCard").hidden = true;
+  document.getElementById("productFormCard").dataset.mode = "add";
   document.getElementById("productFormTitle").textContent = "Tambah Produk";
+  document.getElementById("productFormHelp").textContent = "Isi detail produk tanpa mengubah format data backup lama.";
+  document.getElementById("productSubmitButton").textContent = "Simpan Produk";
 }
 
 function downloadBlob(filename, contents, type){
@@ -1023,8 +1132,15 @@ function excelCell(value){
 }
 
 function exportExcel(filename, sheetName, rows){
-  const table = rows.map(row=>`<Row>${row.map(excelCell).join("")}</Row>`).join("");
-  const workbook = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="${xmlEscape(sheetName.slice(0,31))}"><Table>${table}</Table></Worksheet></Workbook>`;
+  exportWorkbook(filename,[{name:sheetName,rows}]);
+}
+
+function exportWorkbook(filename, sheets){
+  const worksheets = sheets.map(sheet=>{
+    const table = sheet.rows.map(row=>`<Row>${row.map(excelCell).join("")}</Row>`).join("");
+    return `<Worksheet ss:Name="${xmlEscape(sheet.name.slice(0,31))}"><Table>${table}</Table></Worksheet>`;
+  }).join("");
+  const workbook = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">${worksheets}</Workbook>`;
   downloadBlob(filename, `\ufeff${workbook}`, "application/vnd.ms-excel;charset=utf-8");
 }
 
@@ -1035,7 +1151,7 @@ document.querySelectorAll(".nav").forEach(btn=>{
     document.querySelectorAll(".nav,.page").forEach(el=>el.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById(btn.dataset.page).classList.add("active");
-    document.getElementById("pageTitle").textContent = btn.textContent;
+    document.getElementById("pageTitle").textContent = btn.dataset.pageTitle || btn.textContent.trim();
   };
 });
 
@@ -1060,8 +1176,10 @@ document.getElementById("cashierCategories").onclick = e => {
 
 document.getElementById("productTable").onclick = e => {
   const editButton = e.target.closest("[data-edit-product]");
+  const stockButton = e.target.closest("[data-stock-product]");
   const deleteButton = e.target.closest("[data-delete-product]");
   if(editButton) editProduct(editButton.dataset.editProduct);
+  if(stockButton) editProduct(stockButton.dataset.stockProduct,"stock");
   if(deleteButton) deleteProduct(deleteButton.dataset.deleteProduct);
 };
 
@@ -1071,6 +1189,7 @@ document.getElementById("openProductForm").onclick = () => {
 };
 document.getElementById("closeProductForm").onclick = closeProductForm;
 document.getElementById("cancelProductForm").onclick = closeProductForm;
+document.getElementById("stockAdd").oninput = updateStockAddPreview;
 document.getElementById("productSearchInput").oninput = e => {
   productSearchQuery = e.target.value;
   productPage = 1;
@@ -1135,8 +1254,12 @@ document.getElementById("reportTable").onclick = e => {
 };
 document.getElementById("refreshReport").onclick = renderReport;
 document.getElementById("dashboardRange").onchange = renderDashboard;
+document.getElementById("dashboardDate").onchange = e => {
+  dashboardDateKey = e.target.value || localDateKey(new Date());
+  renderDashboard();
+};
 document.getElementById("dashboardChartMetric").onchange = renderSalesChart;
-document.getElementById("refreshDashboard").onclick = renderDashboard;
+document.getElementById("refreshDashboard").onclick = refreshDashboardData;
 document.querySelectorAll("[data-dashboard-products]").forEach(button=>{
   button.onclick = () => document.querySelector('[data-page="produk"]').click();
 });
@@ -1166,21 +1289,26 @@ document.getElementById("productForm").onsubmit = async e => {
   const imageUrlInput = document.getElementById("imageUrl").value.trim();
   const imageFile = document.getElementById("imageFile").files[0];
   const uploadedImage = await readImageFile(imageFile);
-  const stockStart = Number(document.getElementById("stockStart").value);
 
   if(id){
     const p = products.find(x=>x.id===id);
     if(!p) return;
     const imageUrl = uploadedImage || imageUrlInput || p.imageUrl || "";
-    Object.assign(p,{name,category,costPrice,sellPrice,imageUrl,stockStart});
+    const stockAdded = stockIn(p) + nonNegative(document.getElementById("stockAdd").value);
+    Object.assign(p,{name,category,costPrice,sellPrice,imageUrl,stockStart:p.stockStart,stockAdded});
   } else {
+    const stockStart = Number(document.getElementById("stockStart").value);
     const imageUrl = uploadedImage || imageUrlInput;
-    products.push({id:uid("product"),name,category,costPrice,sellPrice,imageUrl,stockStart});
+    products.push({id:uid("product"),name,category,costPrice,sellPrice,imageUrl,stockStart,stockAdded:0});
   }
 
   e.target.reset();
   document.getElementById("editId").value = "";
+  document.getElementById("stockAddField").hidden = true;
+  document.getElementById("stockStart").readOnly = false;
   document.getElementById("productFormCard").hidden = true;
+  document.getElementById("productFormCard").dataset.mode = "add";
+  document.getElementById("productSubmitButton").textContent = "Simpan Produk";
   save();
   renderAll();
 };
@@ -1333,15 +1461,41 @@ document.getElementById("removeQrisImage").onclick = () => {
 };
 
 document.getElementById("exportProduct").onclick = () => {
-  const rows = [["Produk","Kategori","Harga Modal","Harga Jual","Margin","Stok Awal","Terjual","Stok Akhir"]];
-  products.forEach(p=>rows.push([p.name,productCategory(p),Number(p.costPrice),Number(p.sellPrice),profitPerItem(p),Number(p.stockStart),soldQty(p.id),stockEnd(p)]));
+  const rows = [["Produk","Kategori","Harga Modal","Harga Jual","Margin","Stok Awal","Stok Masuk","Terjual","Stok Akhir"]];
+  products.forEach(p=>rows.push([p.name,productCategory(p),Number(p.costPrice),Number(p.sellPrice),profitPerItem(p),Number(p.stockStart),stockIn(p),soldQty(p.id),stockEnd(p)]));
   exportExcel("produk-pos.xls","Produk",rows);
 };
 
 document.getElementById("exportReport").onclick = () => {
-  const data = filterSales(document.getElementById("reportType").value);
-  const rows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Omzet","Laba"]];
-  data.forEach(s=>rows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.revenue),Number(s.profit)]));
+  const type = document.getElementById("reportType").value;
+  const data = filterSales(type);
+  const periodLabels = {daily:"Daily",weekly:"Weekly",monthly:"Monthly"};
+  const totalTransactions = new Set(data.map(s=>s.transactionId || s.id)).size;
+  const totalQty = data.reduce((sum,s)=>sum+Number(s.qty||0),0);
+  const totalRevenue = data.reduce((sum,s)=>sum+Number(s.revenue||0),0);
+  const totalProfit = data.reduce((sum,s)=>sum+Number(s.profit||0),0);
+  const productSummary = productSalesSummary(data);
+  const detailRows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Omzet","Laba"]];
+  data.forEach(s=>detailRows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.revenue),Number(s.profit)]));
+  const productRows = [["Produk","Kategori","Qty Terjual","Omzet","Modal","Laba"]];
+  productSummary.forEach(item=>productRows.push([item.productName,item.category,item.qty,item.revenue,item.cost,item.profit]));
+  const financeRows = [
+    ["Periode",periodLabels[type] || "Daily"],
+    ["Total Transaksi",totalTransactions],
+    ["Total Qty",totalQty],
+    ["Total Omzet",totalRevenue],
+    ["Total Laba",totalProfit]
+  ];
+  const rows = [
+    ["Detail Transaksi"],
+    ...detailRows,
+    [],
+    ["Ringkasan Produk Terjual"],
+    ...productRows,
+    [],
+    ["Ringkasan Keuangan"],
+    ...financeRows
+  ];
   exportExcel("laporan-penjualan.xls","Laporan Penjualan",rows);
 };
 
@@ -1350,6 +1504,13 @@ document.getElementById("openDataToolsDialog").onclick = () => dataToolsDialog.s
 document.getElementById("closeDataToolsDialog").onclick = () => dataToolsDialog.close();
 dataToolsDialog.onclick = e => {
   if(e.target===dataToolsDialog) dataToolsDialog.close();
+};
+
+const aboutAppDialog = document.getElementById("aboutAppDialog");
+document.getElementById("openAboutAppDialog").onclick = () => aboutAppDialog.showModal();
+document.getElementById("closeAboutAppDialog").onclick = () => aboutAppDialog.close();
+aboutAppDialog.onclick = e => {
+  if(e.target===aboutAppDialog) aboutAppDialog.close();
 };
 
 document.getElementById("backupData").onclick = () => {
@@ -1441,6 +1602,7 @@ document.getElementById("addCartNote").onclick = () => {
 
 function resetIcon(name){
   const icons = {
+    home:'<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
     trash:'<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 15H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
     cube:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5"/><path d="M12 12v9"/><path d="M8 5.3l8 4.5"/></svg>',
     receipt:'<svg viewBox="0 0 24 24"><path d="M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2z"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>',
@@ -1473,12 +1635,22 @@ function resetIcon(name){
     edit:'<svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
     filter:'<svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M7 12h10"/><path d="M10 18h4"/></svg>',
     sort:'<svg viewBox="0 0 24 24"><path d="M7 4v16"/><path d="M4 7l3-3 3 3"/><path d="M17 20V4"/><path d="M14 17l3 3 3-3"/></svg>',
-    grid:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>'
+    grid:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>',
+    settings:'<svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 2l.05.05a2 2 0 0 1-2.83 2.83l-.05-.05a1.8 1.8 0 0 0-2-.36 1.8 1.8 0 0 0-1.1 1.65V21a2 2 0 0 1-4 0v-.08a1.8 1.8 0 0 0-1.1-1.65 1.8 1.8 0 0 0-2 .36l-.05.05a2 2 0 0 1-2.83-2.83l.05-.05a1.8 1.8 0 0 0 .36-2 1.8 1.8 0 0 0-1.65-1.1H3a2 2 0 0 1 0-4h.08a1.8 1.8 0 0 0 1.65-1.1 1.8 1.8 0 0 0-.36-2l-.05-.05a2 2 0 0 1 2.83-2.83l.05.05a1.8 1.8 0 0 0 2 .36A1.8 1.8 0 0 0 10.3 3V3a2 2 0 0 1 4 0v.08a1.8 1.8 0 0 0 1.1 1.65 1.8 1.8 0 0 0 2-.36l.05-.05a2 2 0 0 1 2.83 2.83l-.05.05a1.8 1.8 0 0 0-.36 2 1.8 1.8 0 0 0 1.65 1.1H21a2 2 0 0 1 0 4h-.08A1.8 1.8 0 0 0 19.4 15z"/></svg>',
+    warning:'<svg viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3z"/><path d="M12 9v5"/><path d="M12 18h.01"/></svg>'
   };
   return icons[name] || "";
 }
 
 function setupResetIcons(){
+  document.getElementById("navDashboardIcon").innerHTML = resetIcon("home");
+  document.getElementById("navCashierIcon").innerHTML = resetIcon("cart");
+  document.getElementById("navProductIcon").innerHTML = resetIcon("cube");
+  document.getElementById("navReportIcon").innerHTML = resetIcon("trend");
+  document.getElementById("navSettingsIcon").innerHTML = resetIcon("settings");
+  document.getElementById("settingsPinIcon").innerHTML = resetIcon("shield");
+  document.getElementById("settingsBackupIcon").innerHTML = resetIcon("database");
+  document.getElementById("settingsResetIcon").innerHTML = resetIcon("warning");
   document.getElementById("dataToolsHeaderIcon").innerHTML = resetIcon("database");
   document.getElementById("backupDataIcon").innerHTML = resetIcon("download");
   document.getElementById("restoreDataIcon").innerHTML = resetIcon("upload");
@@ -1504,7 +1676,6 @@ function setupResetIcons(){
   document.querySelector('[data-payment-icon="more"]').innerHTML = resetIcon("more");
   document.getElementById("saveTransactionIcon").innerHTML = resetIcon("receipt");
   document.getElementById("clearCartIcon").innerHTML = resetIcon("trash");
-  document.getElementById("reportToolbarCalendarIcon").innerHTML = resetIcon("calendar");
   document.getElementById("reportRefreshIcon").innerHTML = resetIcon("refresh");
   document.getElementById("reportPeriodIcon").innerHTML = resetIcon("calendar");
   document.getElementById("reportTrxIcon").innerHTML = resetIcon("receipt");
@@ -1513,6 +1684,7 @@ function setupResetIcons(){
   document.getElementById("reportProfitIcon").innerHTML = resetIcon("trend");
   document.getElementById("reportExportIcon").innerHTML = resetIcon("sheet");
   document.getElementById("reportHintIcon").innerHTML = resetIcon("bulb");
+  document.getElementById("reportProductTotalIcon").innerHTML = resetIcon("bag");
   document.getElementById("dashboardCalendarIcon").innerHTML = resetIcon("calendar");
   document.getElementById("dashboardRefreshIcon").innerHTML = resetIcon("refresh");
   document.getElementById("dashOmzetIcon").innerHTML = resetIcon("walletCards");
