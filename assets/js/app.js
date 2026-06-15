@@ -62,10 +62,20 @@ const normalizeCartItem = item => ({
   costPrice:nonNegative(item.costPrice),
   sellPrice:nonNegative(item.sellPrice)
 });
+const normalizeAuditLog = log => ({
+  id:String(log.id || `log-${Date.now()}-${Math.random().toString(36).slice(2,8)}`),
+  category:["transaction","product","security","data"].includes(log.category) ? log.category : "data",
+  level:["info","success","warning","error"].includes(log.level) ? log.level : "info",
+  action:String(log.action || "Aktivitas aplikasi"),
+  detail:String(log.detail || ""),
+  reference:String(log.reference || ""),
+  date:typeof log.date === "string" ? log.date : new Date().toISOString()
+});
 
 let products = readArrayStorage("pos_products").filter(isRecord).map(normalizeProduct);
 let sales = readArrayStorage("pos_sales").filter(isRecord).map(normalizeSale);
 let cart = readArrayStorage("pos_cart").filter(isRecord).map(normalizeCartItem);
+let auditLogs = readArrayStorage("pos_audit_logs").filter(isRecord).map(normalizeAuditLog).slice(0,500);
 let qrisImage = normalizeQrisImage(readStorage("pos_qris_image",""));
 let adminPinHash = normalizePinHash(readStorage("pos_admin_pin_hash",""));
 let cashierSearchQuery = "";
@@ -82,6 +92,7 @@ const save = () => {
   localStorage.setItem("pos_products", JSON.stringify(products));
   localStorage.setItem("pos_sales", JSON.stringify(sales));
   localStorage.setItem("pos_cart", JSON.stringify(cart));
+  localStorage.setItem("pos_audit_logs", JSON.stringify(auditLogs));
   localStorage.setItem("pos_qris_image", JSON.stringify(qrisImage));
   localStorage.setItem("pos_admin_pin_hash", JSON.stringify(adminPinHash));
 };
@@ -616,6 +627,79 @@ function localDateKey(date){
   return `${year}-${month}-${day}`;
 }
 
+function recordAudit(category, action, detail, options={}){
+  auditLogs.unshift(normalizeAuditLog({
+    id:uid("log"),
+    category,
+    level:options.level || "info",
+    action,
+    detail,
+    reference:options.reference || "",
+    date:new Date().toISOString()
+  }));
+  auditLogs = auditLogs.slice(0,500);
+  localStorage.setItem("pos_audit_logs",JSON.stringify(auditLogs));
+  if(document.getElementById("audit-log")?.classList.contains("active")) renderAuditLog();
+}
+
+function auditPeriodMatches(dateValue, period){
+  if(period==="all") return true;
+  const date = new Date(dateValue);
+  if(Number.isNaN(date.getTime())) return false;
+  const now = new Date();
+  if(period==="today") return localDateKey(date)===localDateKey(now);
+  const start = new Date();
+  start.setHours(0,0,0,0);
+  start.setDate(start.getDate()-(period==="week" ? 6 : 29));
+  return date>=start && date<=now;
+}
+
+function auditCategoryMeta(category){
+  return {
+    transaction:{label:"Transaksi",icon:"receipt"},
+    product:{label:"Produk & Stok",icon:"cube"},
+    security:{label:"Keamanan",icon:"shield"},
+    data:{label:"Data & Sistem",icon:"database"}
+  }[category] || {label:"Sistem",icon:"list"};
+}
+
+function renderAuditLog(){
+  const list = document.getElementById("auditLogList");
+  if(!list) return;
+  const query = document.getElementById("auditSearchInput").value.trim().toLowerCase();
+  const category = document.getElementById("auditCategoryFilter").value;
+  const period = document.getElementById("auditPeriodFilter").value;
+  const visible = auditLogs.filter(log=>{
+    const matchesQuery = !query || `${log.action} ${log.detail} ${log.reference}`.toLowerCase().includes(query);
+    return matchesQuery && (category==="all" || log.category===category) && auditPeriodMatches(log.date,period);
+  });
+  const today = localDateKey(new Date());
+  document.getElementById("auditTotal").textContent = auditLogs.length;
+  document.getElementById("auditToday").textContent = auditLogs.filter(log=>localDateKey(new Date(log.date))===today).length;
+  document.getElementById("auditSecurity").textContent = auditLogs.filter(log=>log.category==="security").length;
+  document.getElementById("auditWarning").textContent = auditLogs.filter(log=>["warning","error"].includes(log.level)).length;
+  document.getElementById("auditResultCount").textContent = `Menampilkan ${visible.length} dari ${auditLogs.length} aktivitas`;
+  document.getElementById("exportAuditLog").disabled = auditLogs.length===0;
+  document.getElementById("clearAuditLog").disabled = auditLogs.length===0;
+  if(visible.length===0){
+    list.innerHTML = `<div class="audit-empty"><span>${resetIcon("clipboardSearch")}</span><strong>Belum ada aktivitas yang cocok</strong><small>Ubah filter atau lakukan aktivitas baru di aplikasi.</small></div>`;
+    return;
+  }
+  list.innerHTML = visible.map(log=>{
+    const date = new Date(log.date);
+    const meta = auditCategoryMeta(log.category);
+    return `<article class="audit-log-item category-${log.category} level-${log.level}">
+      <span class="audit-log-icon">${resetIcon(meta.icon)}</span>
+      <div class="audit-log-main">
+        <div class="audit-log-title"><strong>${escapeHtml(log.action)}</strong><span class="audit-log-badge">${escapeHtml(meta.label)}</span></div>
+        <p>${escapeHtml(log.detail)}</p>
+        ${log.reference ? `<span class="audit-log-reference">Ref: ${escapeHtml(log.reference)}</span>` : ""}
+      </div>
+      <time class="audit-log-time" datetime="${escapeHtml(log.date)}"><strong>${escapeHtml(date.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}))}</strong><small>${escapeHtml(date.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}))}</small></time>
+    </article>`;
+  }).join("");
+}
+
 function dateFromLocalKey(key){
   const [year,month,day] = String(key || "").split("-").map(Number);
   const date = new Date(year,month-1,day);
@@ -633,6 +717,7 @@ function refreshStoredData(){
   products = readArrayStorage("pos_products").filter(isRecord).map(normalizeProduct);
   sales = readArrayStorage("pos_sales").filter(isRecord).map(normalizeSale);
   cart = readArrayStorage("pos_cart").filter(isRecord).map(normalizeCartItem);
+  auditLogs = readArrayStorage("pos_audit_logs").filter(isRecord).map(normalizeAuditLog).slice(0,500);
   qrisImage = normalizeQrisImage(readStorage("pos_qris_image",""));
   adminPinHash = normalizePinHash(readStorage("pos_admin_pin_hash",""));
 }
@@ -1009,6 +1094,7 @@ function renderAll(){
   renderLastReceiptButton();
   renderDashboard();
   renderReport();
+  renderAuditLog();
 }
 
 function addCartItem(item){
@@ -1073,8 +1159,10 @@ function editProduct(id, mode="edit"){
 
 function deleteProduct(id){
   if(!confirm("Hapus produk dari katalog? Riwayat transaksi tetap tersimpan.")) return;
+  const product = products.find(p=>p.id===id);
   products = products.filter(p=>p.id!==id);
   cart = cart.filter(item=>item.productId!==id);
+  if(product) recordAudit("product","Produk dihapus",`${product.name} dihapus dari katalog.`,{level:"warning",reference:product.id});
   save();
   renderAll();
 }
@@ -1122,7 +1210,7 @@ function backupFilename(){
 }
 
 function downloadBackup(){
-  const backup = JSON.stringify({version:1,exportedAt:new Date().toISOString(),products,sales,cart,qrisImage},null,2);
+  const backup = JSON.stringify({version:2,exportedAt:new Date().toISOString(),products,sales,cart,qrisImage,auditLogs},null,2);
   downloadBlob(backupFilename(),backup,"application/json");
 }
 
@@ -1152,6 +1240,7 @@ document.querySelectorAll(".nav").forEach(btn=>{
     btn.classList.add("active");
     document.getElementById(btn.dataset.page).classList.add("active");
     document.getElementById("pageTitle").textContent = btn.dataset.pageTitle || btn.textContent.trim();
+    if(btn.dataset.page==="audit-log") renderAuditLog();
   };
 });
 
@@ -1289,17 +1378,22 @@ document.getElementById("productForm").onsubmit = async e => {
   const imageUrlInput = document.getElementById("imageUrl").value.trim();
   const imageFile = document.getElementById("imageFile").files[0];
   const uploadedImage = await readImageFile(imageFile);
+  const addedStock = nonNegative(document.getElementById("stockAdd").value);
 
   if(id){
     const p = products.find(x=>x.id===id);
     if(!p) return;
+    const oldName = p.name;
     const imageUrl = uploadedImage || imageUrlInput || p.imageUrl || "";
-    const stockAdded = stockIn(p) + nonNegative(document.getElementById("stockAdd").value);
+    const stockAdded = stockIn(p) + addedStock;
     Object.assign(p,{name,category,costPrice,sellPrice,imageUrl,stockStart:p.stockStart,stockAdded});
+    recordAudit("product",addedStock ? "Stok produk diperbarui" : "Produk diperbarui",addedStock ? `${name} menerima tambahan stok sebanyak ${addedStock}.` : `Detail ${oldName} diperbarui menjadi ${name}.`,{level:"success",reference:p.id});
   } else {
     const stockStart = Number(document.getElementById("stockStart").value);
     const imageUrl = uploadedImage || imageUrlInput;
-    products.push({id:uid("product"),name,category,costPrice,sellPrice,imageUrl,stockStart,stockAdded:0});
+    const product = {id:uid("product"),name,category,costPrice,sellPrice,imageUrl,stockStart,stockAdded:0};
+    products.push(product);
+    recordAudit("product","Produk baru ditambahkan",`${name} ditambahkan ke kategori ${category} dengan stok awal ${stockStart}.`,{level:"success",reference:product.id});
   }
 
   e.target.reset();
@@ -1412,6 +1506,7 @@ document.getElementById("checkoutCart").onclick = () => {
       date
     });
   });
+  recordAudit("transaction","Transaksi berhasil",`${cart.reduce((sum,item)=>sum+item.qty,0)} item terjual melalui ${paymentMethod} dengan total ${rupiah(total)}.`,{level:"success",reference:transactionId});
   cart = [];
   save();
   const cashReceivedInput = document.getElementById("cashReceived");
@@ -1444,6 +1539,7 @@ document.getElementById("qrisImageFile").onchange = async e => {
     if(!qrisImage) throw new Error("Format gambar tidak valid");
     save();
     renderQrisPayment();
+    recordAudit("data","Barcode QRIS diperbarui","Gambar barcode QRIS pembayaran berhasil disimpan.",{level:"success"});
     setSaleMessage("Barcode QRIS berhasil disimpan.", "#16a34a");
   } catch {
     setSaleMessage("Barcode QRIS gagal disimpan. Pilih file gambar yang valid.", "#dc2626");
@@ -1455,6 +1551,7 @@ document.getElementById("qrisImageFile").onchange = async e => {
 document.getElementById("removeQrisImage").onclick = () => {
   if(!qrisImage || !confirm("Hapus barcode QRIS yang tersimpan?")) return;
   qrisImage = "";
+  recordAudit("data","Barcode QRIS dihapus","Barcode QRIS pembayaran dihapus dari aplikasi.",{level:"warning"});
   save();
   renderQrisPayment();
   setSaleMessage("Barcode QRIS berhasil dihapus.", "#16a34a");
@@ -1464,6 +1561,7 @@ document.getElementById("exportProduct").onclick = () => {
   const rows = [["Produk","Kategori","Harga Modal","Harga Jual","Margin","Stok Awal","Stok Masuk","Terjual","Stok Akhir"]];
   products.forEach(p=>rows.push([p.name,productCategory(p),Number(p.costPrice),Number(p.sellPrice),profitPerItem(p),Number(p.stockStart),stockIn(p),soldQty(p.id),stockEnd(p)]));
   exportExcel("produk-pos.xls","Produk",rows);
+  recordAudit("data","Data produk diekspor",`${products.length} produk diekspor ke file Excel.`,{level:"success"});
 };
 
 document.getElementById("exportReport").onclick = () => {
@@ -1497,6 +1595,7 @@ document.getElementById("exportReport").onclick = () => {
     ...financeRows
   ];
   exportExcel("laporan-penjualan.xls","Laporan Penjualan",rows);
+  recordAudit("data","Laporan penjualan diekspor",`Laporan ${periodLabels[type] || "Daily"} diekspor dengan ${totalTransactions} transaksi.`,{level:"success"});
 };
 
 const dataToolsDialog = document.getElementById("dataToolsDialog");
@@ -1515,6 +1614,7 @@ aboutAppDialog.onclick = e => {
 
 document.getElementById("backupData").onclick = () => {
   downloadBackup();
+  recordAudit("data","Backup data dibuat","Cadangan JSON aplikasi berhasil diunduh.",{level:"success"});
   dataToolsDialog.close();
 };
 
@@ -1526,6 +1626,7 @@ document.getElementById("exportAllExcel").onclick = () => {
   const rows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Omzet","Laba"]];
   sales.forEach(s=>rows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.revenue),Number(s.profit)]));
   exportExcel("seluruh-penjualan.xls","Seluruh Penjualan",rows);
+  recordAudit("data","Seluruh penjualan diekspor",`${new Set(sales.map(transactionKey)).size} transaksi diekspor ke Excel.`,{level:"success"});
   dataToolsDialog.close();
 };
 
@@ -1538,7 +1639,8 @@ document.getElementById("restoreFile").onchange = async e => {
     const validSales = Array.isArray(data.sales) && data.sales.every(s=>isRecord(s) && typeof s.id==="string" && typeof s.productName==="string");
     const validCart = data.cart===undefined || (Array.isArray(data.cart) && data.cart.every(item=>isRecord(item) && typeof item.id==="string" && typeof item.productName==="string"));
     const validQrisImage = data.qrisImage===undefined || data.qrisImage==="" || normalizeQrisImage(data.qrisImage);
-    if(!validProducts || !validSales || !validCart || !validQrisImage){
+    const validAuditLogs = data.auditLogs===undefined || (Array.isArray(data.auditLogs) && data.auditLogs.every(isRecord));
+    if(!validProducts || !validSales || !validCart || !validQrisImage || !validAuditLogs){
       throw new Error("Format backup tidak valid");
     }
     if(!confirm("Restore akan mengganti data saat ini. Lanjutkan?")) return;
@@ -1546,11 +1648,14 @@ document.getElementById("restoreFile").onchange = async e => {
     sales = data.sales.map(normalizeSale);
     cart = Array.isArray(data.cart) ? data.cart.map(normalizeCartItem) : [];
     qrisImage = normalizeQrisImage(data.qrisImage);
+    auditLogs = Array.isArray(data.auditLogs) ? data.auditLogs.map(normalizeAuditLog).slice(0,500) : auditLogs;
+    recordAudit("data","Restore data berhasil",`Data dipulihkan dari ${file.name}: ${products.length} produk dan ${new Set(sales.map(transactionKey)).size} transaksi.`,{level:"success"});
     save();
     renderAll();
     dataToolsDialog.close();
     alert("Restore data berhasil.");
   } catch {
+    recordAudit("data","Restore data gagal",`File ${file.name || "backup"} tidak dapat dipulihkan.`,{level:"error"});
     alert("File backup tidak valid.");
   } finally {
     e.target.value = "";
@@ -1558,8 +1663,28 @@ document.getElementById("restoreFile").onchange = async e => {
 };
 
 document.getElementById("reportType").onchange = renderReport;
+document.getElementById("auditSearchInput").oninput = renderAuditLog;
+document.getElementById("auditCategoryFilter").onchange = renderAuditLog;
+document.getElementById("auditPeriodFilter").onchange = renderAuditLog;
+document.getElementById("exportAuditLog").onclick = () => {
+  const data = JSON.stringify({exportedAt:new Date().toISOString(),total:auditLogs.length,logs:auditLogs},null,2);
+  downloadBlob(`audit-log-${localDateKey(new Date())}.json`,data,"application/json");
+  recordAudit("data","Audit log diekspor",`${auditLogs.length} aktivitas diekspor ke file JSON.`,{level:"success"});
+};
+document.getElementById("clearAuditLog").onclick = () => {
+  if(auditLogs.length===0) return;
+  if(!adminPinHash){
+    alert("Buat PIN Admin terlebih dahulu sebelum membersihkan Audit Log.");
+    openAdminPinSettings();
+    return;
+  }
+  document.getElementById("auditClearForm").reset();
+  setPinMessage("auditClearMessage","","");
+  document.getElementById("auditClearDialog").showModal();
+};
 
 const adminPinDialog = document.getElementById("adminPinDialog");
+const auditClearDialog = document.getElementById("auditClearDialog");
 const resetDialog = document.getElementById("resetDialog");
 let activeResetType = "products";
 
@@ -1647,7 +1772,19 @@ function setupResetIcons(){
   document.getElementById("navCashierIcon").innerHTML = resetIcon("cart");
   document.getElementById("navProductIcon").innerHTML = resetIcon("cube");
   document.getElementById("navReportIcon").innerHTML = resetIcon("trend");
+  document.getElementById("navAuditIcon").innerHTML = resetIcon("clipboardSearch");
   document.getElementById("navSettingsIcon").innerHTML = resetIcon("settings");
+  document.getElementById("auditExportIcon").innerHTML = resetIcon("download");
+  document.getElementById("auditClearIcon").innerHTML = resetIcon("trash");
+  document.getElementById("auditTotalIcon").innerHTML = resetIcon("list");
+  document.getElementById("auditTodayIcon").innerHTML = resetIcon("calendar");
+  document.getElementById("auditSecurityIcon").innerHTML = resetIcon("shield");
+  document.getElementById("auditWarningIcon").innerHTML = resetIcon("warning");
+  document.getElementById("auditSearchIcon").innerHTML = resetIcon("search");
+  document.getElementById("auditCategoryIcon").innerHTML = resetIcon("filter");
+  document.getElementById("auditPeriodIcon").innerHTML = resetIcon("calendar");
+  document.getElementById("auditClearHeaderIcon").innerHTML = resetIcon("shield");
+  document.getElementById("auditClearLockIcon").innerHTML = resetIcon("lock");
   document.getElementById("settingsPinIcon").innerHTML = resetIcon("shield");
   document.getElementById("settingsBackupIcon").innerHTML = resetIcon("database");
   document.getElementById("settingsResetIcon").innerHTML = resetIcon("warning");
@@ -1988,6 +2125,7 @@ adminPinDialog.onclick = e => {
 
 document.getElementById("adminPinForm").onsubmit = async e => {
   e.preventDefault();
+  const hadAdminPin = Boolean(adminPinHash);
   const currentPin = document.getElementById("currentAdminPin").value;
   const newPin = document.getElementById("newAdminPin").value;
   const confirmPin = document.getElementById("confirmAdminPin").value;
@@ -2001,10 +2139,12 @@ document.getElementById("adminPinForm").onsubmit = async e => {
   }
   try {
     if(adminPinHash && !await verifyAdminPin(currentPin)){
+      recordAudit("security","Verifikasi PIN gagal","Percobaan mengubah PIN Admin ditolak karena PIN saat ini salah.",{level:"warning"});
       setPinMessage("adminPinMessage","PIN saat ini salah.","#dc2626");
       return;
     }
     adminPinHash = await hashAdminPin(newPin);
+    recordAudit("security",hadAdminPin ? "PIN Admin diperbarui" : "PIN Admin dibuat","Konfigurasi keamanan PIN Admin berhasil disimpan.",{level:"success"});
     save();
     closeAdminPinSettings();
     alert("PIN Admin berhasil disimpan.");
@@ -2014,6 +2154,29 @@ document.getElementById("adminPinForm").onsubmit = async e => {
 };
 
 document.getElementById("openResetDialog").onclick = openResetDialog;
+document.getElementById("closeAuditClearDialog").onclick = () => auditClearDialog.close();
+document.getElementById("cancelAuditClear").onclick = () => auditClearDialog.close();
+auditClearDialog.onclick = e => {
+  if(e.target===auditClearDialog) auditClearDialog.close();
+};
+document.getElementById("auditClearForm").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    if(!await verifyAdminPin(document.getElementById("auditClearAdminPin").value)){
+      recordAudit("security","Penghapusan Audit Log ditolak","Percobaan membersihkan Audit Log gagal karena PIN Admin salah.",{level:"warning"});
+      setPinMessage("auditClearMessage","PIN Admin salah.","#dc2626");
+      return;
+    }
+  } catch {
+    setPinMessage("auditClearMessage","PIN gagal diverifikasi pada browser ini.","#dc2626");
+    return;
+  }
+  if(!confirm("Bersihkan seluruh Audit Log? Riwayat yang dihapus tidak dapat dipulihkan tanpa backup.")) return;
+  auditLogs = [];
+  recordAudit("security","Audit log dibersihkan","Seluruh riwayat Audit Log sebelumnya telah dihapus.",{level:"warning"});
+  auditClearDialog.close();
+  renderAuditLog();
+};
 document.getElementById("closeResetDialog").onclick = () => resetDialog.close();
 document.getElementById("cancelResetData").onclick = () => resetDialog.close();
 document.getElementById("resetSelectVisible").onclick = () => {
@@ -2062,6 +2225,7 @@ document.getElementById("resetDataForm").onsubmit = async e => {
 
   try {
     if(!await verifyAdminPin(document.getElementById("resetAdminPin").value)){
+      recordAudit("security","Verifikasi reset gagal","Percobaan reset data ditolak karena PIN Admin salah.",{level:"warning"});
       setPinMessage("resetDataMessage","PIN Admin salah.","#dc2626");
       return;
     }
@@ -2083,6 +2247,7 @@ document.getElementById("resetDataForm").onsubmit = async e => {
   }
   if(transactionIds.size) sales = sales.filter(sale=>!transactionIds.has(transactionKey(sale)));
 
+  recordAudit("data","Data aplikasi dihapus",`Admin menghapus ${labels.join(", ")} melalui menu Reset Data.`,{level:"warning"});
   finishReset(`Data ${labels.join(", ")} berhasil dihapus.`);
 };
 

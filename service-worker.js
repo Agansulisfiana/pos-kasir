@@ -1,13 +1,13 @@
-const CACHE_NAME = "daily-kopi-pos-v39";
+const CACHE_NAME = "daily-kopi-pos-v41";
 const filesToCache = [
   "./",
   "./index.html",
-  "./style.css",
-  "./splash.css",
-  "./app.js",
+  "./assets/css/style.css",
+  "./assets/css/splash.css",
+  "./assets/js/app.js",
   "./manifest.json",
-  "./assets/logo POS kasir.png",
-  "./assets/logo matcha bee.jpg"
+  "./assets/images/logo-pos-kasir.png",
+  "./assets/images/logo-matcha-bee.jpg"
 ];
 
 self.addEventListener("install", event => {

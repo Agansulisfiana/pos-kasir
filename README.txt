@@ -142,17 +142,6 @@ STRUKTUR FILE
 - index.html
   Struktur halaman aplikasi, dialog, menu, dan elemen UI.
 
-- style.css
-  Styling utama aplikasi, termasuk dashboard, kasir, laporan, reset data,
-  dialog pengaturan, dan tampilan responsive.
-
-- app.js
-  Logika aplikasi: produk, kasir, keranjang, transaksi, laporan, struk,
-  backup/restore, reset data, PIN Admin, dan LocalStorage.
-
-- splash.css
-  Styling splash screen.
-
 - manifest.json
   Konfigurasi PWA.
 
@@ -160,13 +149,23 @@ STRUKTUR FILE
   Cache dasar asset aplikasi.
 
 - assets/
-  Logo dan asset gambar aplikasi.
+  Asset aplikasi yang dikelompokkan berdasarkan jenis.
+
+  - css/
+    style.css untuk styling utama dan splash.css untuk splash screen.
+
+  - js/
+    app.js untuk logika aplikasi, transaksi, laporan, dan LocalStorage.
+
+  - images/
+    Logo dan asset gambar aplikasi.
 
 
 CATATAN
 
 - Aplikasi ini belum memakai database/server.
 - Data tersimpan di browser yang digunakan.
+- Audit Log menyimpan maksimal 500 aktivitas terbaru di browser.
 - Jika cache/browser data dihapus, data aplikasi juga bisa hilang.
 - Lakukan backup JSON secara berkala dari menu Pengaturan.
 - Cocok untuk kasir sederhana, usaha kecil, dan penggunaan lokal.

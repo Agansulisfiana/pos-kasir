@@ -7,7 +7,7 @@
   "theme_color": "#1f3a24",
   "icons": [
     {
-      "src": "assets/logo POS kasir.png",
+      "src": "assets/images/logo-pos-kasir.png",
       "sizes": "1254x1254",
       "type": "image/png"
     }

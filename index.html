@@ -9,13 +9,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="splash.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/splash.css" />
 </head>
 <body>
   <div id="splashScreen">
     <div class="splash-content">
-      <img src="assets/logo matcha bee.jpg" alt="Daily Kopi ToGo" class="splash-logo" />
+      <img src="assets/images/logo-matcha-bee.jpg" alt="Daily Kopi ToGo" class="splash-logo" />
       <h1>Daily Kopi ToGo</h1>
       <p>Kasir &amp; Penjualan</p>
     </div>
@@ -28,7 +28,7 @@ if ("serviceWorker" in navigator) {
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-logo-frame">
-        <img class="logo" src="assets/logo matcha bee.jpg" alt="Logo Matcha Bee x Daily Kopi ToGo" />
+        <img class="logo" src="assets/images/logo-matcha-bee.jpg" alt="Logo Matcha Bee x Daily Kopi ToGo" />
       </div>
       <div class="brand-copy">
         <h1>Daily Kopi ToGo</h1>
@@ -50,6 +50,10 @@ if ("serviceWorker" in navigator) {
     <button class="nav" data-page="laporan" data-page-title="Laporan">
       <span class="nav-icon" id="navReportIcon" aria-hidden="true"></span>
       <span>Laporan</span>
+    </button>
+    <button class="nav" data-page="audit-log" data-page-title="Audit Log">
+      <span class="nav-icon" id="navAuditIcon" aria-hidden="true"></span>
+      <span>Audit Log</span>
     </button>
     <button class="nav" data-page="pengaturan" data-page-title="Pengaturan">
       <span class="nav-icon" id="navSettingsIcon" aria-hidden="true"></span>
@@ -543,6 +547,78 @@ if ("serviceWorker" in navigator) {
       </div>
     </section>
 
+    <section id="audit-log" class="page audit-page">
+      <div class="audit-hero">
+        <div>
+          <span class="audit-kicker">Pusat Aktivitas</span>
+          <h3>Audit Log Aplikasi</h3>
+          <p>Pantau transaksi, perubahan data, keamanan, dan aktivitas sistem secara terstruktur.</p>
+        </div>
+        <div class="audit-hero-actions">
+          <button id="exportAuditLog" class="btn secondary audit-action-button" type="button">
+            <span id="auditExportIcon"></span>
+            Export Log
+          </button>
+          <button id="clearAuditLog" class="btn danger audit-action-button" type="button">
+            <span id="auditClearIcon"></span>
+            Bersihkan Log
+          </button>
+        </div>
+      </div>
+
+      <div class="audit-stats">
+        <div class="audit-stat-card">
+          <span class="audit-stat-icon audit-stat-all" id="auditTotalIcon"></span>
+          <div><small>Total Aktivitas</small><strong id="auditTotal">0</strong><span>Riwayat tersimpan</span></div>
+        </div>
+        <div class="audit-stat-card">
+          <span class="audit-stat-icon audit-stat-today" id="auditTodayIcon"></span>
+          <div><small>Hari Ini</small><strong id="auditToday">0</strong><span>Aktivitas terbaru</span></div>
+        </div>
+        <div class="audit-stat-card">
+          <span class="audit-stat-icon audit-stat-security" id="auditSecurityIcon"></span>
+          <div><small>Keamanan</small><strong id="auditSecurity">0</strong><span>Login dan verifikasi</span></div>
+        </div>
+        <div class="audit-stat-card">
+          <span class="audit-stat-icon audit-stat-warning" id="auditWarningIcon"></span>
+          <div><small>Perlu Perhatian</small><strong id="auditWarning">0</strong><span>Peringatan dan kegagalan</span></div>
+        </div>
+      </div>
+
+      <div class="card audit-panel">
+        <div class="audit-toolbar">
+          <label class="audit-search">
+            <span id="auditSearchIcon"></span>
+            <input id="auditSearchInput" type="search" placeholder="Cari aktivitas, detail, atau referensi..." autocomplete="off" />
+          </label>
+          <label class="audit-filter">
+            <span id="auditCategoryIcon"></span>
+            <select id="auditCategoryFilter" aria-label="Filter kategori audit">
+              <option value="all">Semua Kategori</option>
+              <option value="transaction">Transaksi</option>
+              <option value="product">Produk &amp; Stok</option>
+              <option value="security">Keamanan</option>
+              <option value="data">Data &amp; Sistem</option>
+            </select>
+          </label>
+          <label class="audit-filter">
+            <span id="auditPeriodIcon"></span>
+            <select id="auditPeriodFilter" aria-label="Filter periode audit">
+              <option value="all">Semua Periode</option>
+              <option value="today">Hari Ini</option>
+              <option value="week">7 Hari Terakhir</option>
+              <option value="month">30 Hari Terakhir</option>
+            </select>
+          </label>
+        </div>
+        <div class="audit-list-header">
+          <div><strong>Riwayat Aktivitas</strong><small id="auditResultCount">Menampilkan 0 aktivitas</small></div>
+          <span class="audit-live-badge"><i></i> Tersimpan Lokal</span>
+        </div>
+        <div id="auditLogList" class="audit-log-list"></div>
+      </div>
+    </section>
+
     <section id="pengaturan" class="page">
       <div class="settings-grid">
         <div class="card setting-card">
@@ -617,7 +693,7 @@ if ("serviceWorker" in navigator) {
         <span class="utility-option-icon" id="backupDataIcon" aria-hidden="true"></span>
         <span>
           <strong>Backup JSON</strong>
-          <small>Download seluruh produk, transaksi, keranjang, dan barcode QRIS.</small>
+          <small>Download produk, transaksi, keranjang, barcode QRIS, dan Audit Log.</small>
         </span>
       </button>
       <button id="restoreData" class="utility-option" type="button">
@@ -650,7 +726,7 @@ if ("serviceWorker" in navigator) {
     <div class="about-app-body">
       <div class="about-hero">
         <div class="about-logo-badge">
-          <img src="assets/logo matcha bee.jpg" alt="DailyKopiToGo POS" />
+          <img src="assets/images/logo-matcha-bee.jpg" alt="DailyKopiToGo POS" />
         </div>
         <div class="about-copy">
           <span class="about-kicker">Matcha Bee Edition</span>
@@ -699,6 +775,30 @@ if ("serviceWorker" in navigator) {
       <div class="dialog-actions utility-actions">
         <button id="cancelAdminPin" class="btn secondary" type="button">Batal</button>
         <button class="btn" type="submit">Simpan PIN</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="auditClearDialog" class="reset-dialog utility-dialog pin-dialog">
+    <div class="utility-header">
+      <div class="utility-header-icon" id="auditClearHeaderIcon" aria-hidden="true"></div>
+      <div class="utility-header-copy">
+        <h3>Bersihkan Audit Log</h3>
+        <p>Masukkan PIN Admin untuk menghapus seluruh riwayat aktivitas.</p>
+      </div>
+      <button id="closeAuditClearDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+    </div>
+    <form id="auditClearForm" class="dialog-form utility-form">
+      <label class="utility-field">PIN Admin
+        <span class="utility-input-wrap">
+          <span id="auditClearLockIcon" aria-hidden="true"></span>
+          <input type="password" id="auditClearAdminPin" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" autocomplete="current-password" required />
+        </span>
+      </label>
+      <div id="auditClearMessage" class="pin-message"></div>
+      <div class="dialog-actions utility-actions">
+        <button id="cancelAuditClear" class="btn secondary" type="button">Batal</button>
+        <button class="btn danger" type="submit">Bersihkan Log</button>
       </div>
     </form>
   </dialog>
@@ -794,7 +894,7 @@ if ("serviceWorker" in navigator) {
     </form>
   </dialog>
 
-  <script src="app.js"></script>
+  <script src="assets/js/app.js"></script>
   <script>
     window.addEventListener("load", () => {
       setTimeout(() => {
