@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-kopi-pos-v41";
+const CACHE_NAME = "daily-kopi-pos-v42";
 const filesToCache = [
   "./",
   "./index.html",
@@ -6,7 +6,9 @@ const filesToCache = [
   "./assets/css/splash.css",
   "./assets/js/app.js",
   "./manifest.json",
-  "./assets/images/logo-pos-kasir.png",
+  "./assets/images/icon-192.png",
+  "./assets/images/icon-512.png",
+  "./assets/images/icon-maskable-512.png",
   "./assets/images/logo-matcha-bee.jpg"
 ];
 
