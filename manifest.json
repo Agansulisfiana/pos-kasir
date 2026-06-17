@@ -1,6 +1,6 @@
 {
-  "name": "Daily Kopi ToGo",
-  "short_name": "Daily Kopi",
+  "name": "Matcha Bee x Daily Kopi ToGo",
+  "short_name": "Matcha Bee",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#fff8ef",
