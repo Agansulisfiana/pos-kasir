@@ -464,7 +464,7 @@ function renderReceipt(transactionId){
   const total = items.reduce((sum,item)=>sum+Number(item.revenue||0),0);
 
   document.getElementById("receiptPrintArea").innerHTML = `<div class="receipt-store">
-    <strong>MATCHA BEE X DAILY KOPI TOGO</strong>
+    <strong>MATCHA BEE X DAILY KOPI TO GO</strong>
     <span>Kasir &amp; Penjualan</span>
   </div>
   <div class="receipt-rule"></div>
@@ -489,7 +489,7 @@ function renderReceipt(transactionId){
   <div class="receipt-rule"></div>
   <div class="receipt-footer">
     <span>Terima kasih sudah membeli 🙏</span>
-    <span>☕ Waktunya #Matcha Bee X Daily Kopi ToGo</span>
+    <span>☕ Waktunya #Matcha Bee X Daily Kopi To Go</span>
     <span>📷 IG: @matcha_dailytogo</span>
   </div>`;
   currentReceiptTransactionId = transactionId;
@@ -540,7 +540,7 @@ function receiptWhatsappText(transactionId){
     "",
     "Terima kasih sudah membeli 🙏",
     "",
-    "☕ Waktunya #Matcha Bee X Daily Kopi ToGo",
+    "☕ Waktunya #Matcha Bee X Daily Kopi To Go",
     "📷 IG: @matcha_dailytogo"
   ].join("\n");
 }
