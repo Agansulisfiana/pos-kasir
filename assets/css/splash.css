@@ -50,9 +50,3 @@ body.loaded #splashScreen {
   visibility: hidden;
   transition: .4s ease;
 }
-
-@media (display-mode: standalone) {
-  #splashScreen {
-    display: none !important;
-  }
-}
