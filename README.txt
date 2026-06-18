@@ -29,6 +29,9 @@ FITUR UTAMA
   tombol bayar yang lebih tegas untuk alur kerja kasir harian.
 - Pada tampilan desktop, panel Transaksi Kasir tetap di posisi kanan.
 - Daftar pilihan produk memiliki scroll sendiri saat produk banyak.
+- Pada tablet, POS Android, dan layar kecil, halaman kasir tetap bisa discroll
+  penuh agar daftar produk tidak terpotong.
+- Kategori produk di kasir bisa digeser horizontal pada layar sempit.
 - Pencarian produk berdasarkan nama.
 - Filter kategori produk.
 - Klik produk untuk langsung menambahkan item ke keranjang.
@@ -45,6 +48,9 @@ FITUR UTAMA
 - Tambah, edit, dan hapus produk.
 - Data produk mencakup nama, kategori, harga modal, harga jual, gambar produk,
   dan stok awal.
+- Halaman produk dibuat responsif untuk desktop sempit, tablet, dan perangkat
+  POS Android agar kartu ringkasan, toolbar filter, dan daftar produk tidak
+  terpotong.
 - Saat edit produk/stok, stok awal dikunci agar tidak mengubah data awal.
 - Tambah Stok digunakan untuk menambahkan stok masuk; rumus stok akhir adalah
   stok awal + stok masuk - stok terjual.
@@ -117,8 +123,18 @@ FITUR UTAMA
   menyatu dengan sidebar.
 - Ukuran sidebar tetap compact, sedangkan logo Matcha Bee dipertahankan dalam
   brand card besar agar identitas toko tetap kuat.
+- Teks brand di bawah logo dirapikan agar tidak keluar dari area sidebar.
 - Navigasi sidebar memakai icon SVG konsisten tanpa emoji.
 - Asset logo Matcha Bee ikut disimpan dalam cache service worker.
+
+11. Responsif dan PWA
+- Layout utama mendukung desktop, desktop sempit, tablet, POS Android, dan
+  layar kecil seperti perangkat EDC.
+- Navigasi berubah menyesuaikan lebar layar tanpa mengubah struktur halaman.
+- Area kasir dan produk diperbaiki agar tidak terkunci tinggi layar dan tetap
+  bisa discroll pada berbagai ukuran device.
+- Splash screen custom disembunyikan saat aplikasi berjalan sebagai PWA agar
+  tidak muncul dua kali bersama splash bawaan sistem.
 
 
 CARA MENJALANKAN
@@ -168,6 +184,8 @@ CATATAN
 - Audit Log menyimpan maksimal 500 aktivitas terbaru di browser.
 - Jika cache/browser data dihapus, data aplikasi juga bisa hilang.
 - Lakukan backup JSON secara berkala dari menu Pengaturan.
+- Jika tampilan belum berubah setelah update, lakukan hard refresh atau hapus
+  service worker/cache browser karena aplikasi memakai PWA cache.
 - Cocok untuk kasir sederhana, usaha kecil, dan penggunaan lokal.
 
 Daily Kopi ToGo POS
