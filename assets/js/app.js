@@ -123,6 +123,8 @@ const xmlEscape = value => String(value ?? "").replace(/[&<>"']/g, char => ({
 const productCategory = p => p.category || "Umum";
 const salePayment = sale => sale.paymentMethod || "-";
 const transactionKey = sale => sale.transactionId || sale.id;
+const saleCostTotal = sale => Number(sale.costPrice||0) * Number(sale.qty||0);
+const saleProfitTotal = sale => Number(sale.revenue||0) - saleCostTotal(sale);
 const soldQty = id => sales.filter(s=>s.productId===id).reduce((a,b)=>a+Number(b.qty||0),0);
 const stockIn = p => Number(p.stockAdded||0);
 const stockEnd = p => Number(p.stockStart||0) + stockIn(p) - soldQty(p.id);
@@ -1229,7 +1231,7 @@ function productSalesSummary(data){
     current.discount += Number(sale.discount||0);
     current.revenue += Number(sale.revenue||0);
     current.cost += Number(sale.costPrice||0) * qty;
-    current.profit += Number(sale.profit||0);
+    current.profit = current.revenue - current.cost;
     byProduct.set(key,current);
   });
   return [...byProduct.values()].sort((a,b)=>b.qty-a.qty || b.revenue-a.revenue || a.productName.localeCompare(b.productName,"id"));
@@ -1922,11 +1924,11 @@ document.getElementById("exportReport").onclick = () => {
   const totalQty = data.reduce((sum,s)=>sum+Number(s.qty||0),0);
   const totalDiscount = data.reduce((sum,s)=>sum+Number(s.discount||0),0);
   const totalRevenue = data.reduce((sum,s)=>sum+Number(s.revenue||0),0);
-  const totalProfit = data.reduce((sum,s)=>sum+Number(s.profit||0),0);
+  const totalProfit = data.reduce((sum,s)=>sum+saleProfitTotal(s),0);
   const productSummary = productSalesSummary(data);
-  const detailRows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Diskon","Omzet","Laba"]];
-  data.forEach(s=>detailRows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.profit)]));
-  const productRows = [["Produk","Kategori","Qty Terjual","Diskon","Omzet","Modal","Laba"]];
+  const detailRows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Harga Jual","Diskon","Total/Omset","Modal","Total Modal","Laba"]];
+  data.forEach(s=>detailRows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.costPrice),saleCostTotal(s),saleProfitTotal(s)]));
+  const productRows = [["Produk","Kategori","Qty Terjual","Diskon","Omset","Total Modal","Laba"]];
   productSummary.forEach(item=>productRows.push([item.productName,item.category,item.qty,item.discount,item.revenue,item.cost,item.profit]));
   const financeRows = [
     ["Periode",reportDateLabel(range)],
@@ -1977,8 +1979,8 @@ document.getElementById("restoreData").onclick = () => {
 };
 
 document.getElementById("exportAllExcel").onclick = () => {
-  const rows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Diskon","Omzet","Laba"]];
-  sales.forEach(s=>rows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.profit)]));
+  const rows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Harga Jual","Diskon","Total/Omset","Modal","Total Modal","Laba"]];
+  sales.forEach(s=>rows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.costPrice),saleCostTotal(s),saleProfitTotal(s)]));
   exportExcel("seluruh-penjualan.xls","Seluruh Penjualan",rows);
   recordAudit("data","Seluruh penjualan diekspor",`${new Set(sales.map(transactionKey)).size} transaksi diekspor ke Excel.`,{level:"success"});
   dataToolsDialog.close();
