@@ -232,8 +232,8 @@ if ("serviceWorker" in navigator) {
 
           <div class="cart-summary">
             <div><span>Subtotal (<b id="cartItemCount">0 item</b>)</span><strong id="cartSubtotal">Rp0</strong></div>
-            <div><span>Diskon</span><strong>Rp0</strong></div>
-            <div><span>Pajak (0%)</span><strong>Rp0</strong></div>
+            <div><span>Diskon</span><strong id="cartDiscount">Rp0</strong></div>
+            <!-- <div><span>Pajak (0%)</span><strong>Rp0</strong></div> -->
             <div class="cart-summary-total"><span>TOTAL</span><strong id="cartTotal">Rp0</strong></div>
           </div>
 
@@ -242,14 +242,23 @@ if ("serviceWorker" in navigator) {
               <option value="Cash">Cash</option>
               <option value="QRIS">QRIS</option>
               <option value="Transfer">Transfer</option>
-              <option value="Lainnya">Lainnya</option>
             </select>
           </label>
           <div class="cashier-payment-options">
             <button class="payment-option active" type="button" data-payment-option="Cash"><span data-payment-icon="cash"></span>Cash</button>
             <button class="payment-option" type="button" data-payment-option="QRIS"><span data-payment-icon="qris"></span>QRIS</button>
             <button class="payment-option" type="button" data-payment-option="Transfer"><span data-payment-icon="transfer"></span>Transfer</button>
-            <button class="payment-option" type="button" data-payment-option="Lainnya"><span data-payment-icon="more"></span>Lainnya</button>
+            <button id="toggleDiscountPanel" class="payment-option" type="button"><span data-payment-icon="discount"></span>Diskon</button>
+          </div>
+          <div id="discountPanel" class="discount-panel" hidden>
+            <div class="discount-mode" role="group" aria-label="Jenis diskon">
+              <button class="active" type="button" data-discount-type="nominal">Nominal</button>
+              <button type="button" data-discount-type="percent">Persen</button>
+            </div>
+            <label>Diskon Transaksi
+              <input type="text" id="transactionDiscount" class="discount-input" inputmode="numeric" placeholder="0" autocomplete="off" />
+            </label>
+            <button id="clearDiscount" class="link-button" type="button">Hapus Diskon</button>
           </div>
           <div id="qrisPayment" class="qris-payment" hidden>
             <div class="qris-payment-title">
@@ -666,7 +675,7 @@ if ("serviceWorker" in navigator) {
     <div class="receipt-dialog-header no-print">
       <div>
         <h3>Transaksi Berhasil</h3>
-        <p class="muted">Struk siap dicetak menggunakan printer thermal 58 mm.</p>
+        <!-- <p class="muted">Struk siap dicetak menggunakan printer thermal 58 mm.</p> -->
       </div>
       <button id="closeReceiptDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
     </div>
@@ -679,7 +688,7 @@ if ("serviceWorker" in navigator) {
     </div>
     <div class="dialog-actions receipt-actions no-print">
       <button id="closeReceiptButton" class="btn secondary" type="button">Tutup</button>
-      <button id="whatsappReceipt" class="btn secondary" type="button">Kirim WhatsApp</button>
+      <button id="whatsappReceipt" class="btn secondary" type="button">Kirim PNG WhatsApp</button>
       <button id="printReceipt" class="btn" type="button">Cetak Struk</button>
     </div>
   </dialog>

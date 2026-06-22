@@ -36,7 +36,8 @@ FITUR UTAMA
 - Filter kategori produk.
 - Klik produk untuk langsung menambahkan item ke keranjang.
 - Keranjang kasir dengan gambar produk, qty, subtotal, diskon, pajak, dan total.
-- Metode pembayaran: Cash, QRIS, Transfer, dan Lainnya.
+- Metode pembayaran: Cash, QRIS, Transfer, dan ada menu diskon 
+  yang bisa di input dengan nominal / persen
 - Upload dan tampilkan barcode QRIS toko saat pembayaran QRIS.
 - Tambah catatan atau keterangan pada item terakhir.
 - Tambah nominal manual dengan keterangan.

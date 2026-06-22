@@ -46,6 +46,7 @@ const normalizeSale = sale => ({
   sellPrice:nonNegative(sale.sellPrice),
   revenue:nonNegative(sale.revenue),
   profit:numberOrZero(sale.profit),
+  discount:nonNegative(sale.discount),
   paymentMethod:String(sale.paymentMethod || "-"),
   cashReceived:nonNegative(sale.cashReceived),
   change:nonNegative(sale.change),
@@ -75,6 +76,8 @@ const normalizeAuditLog = log => ({
 let products = readArrayStorage("pos_products").filter(isRecord).map(normalizeProduct);
 let sales = readArrayStorage("pos_sales").filter(isRecord).map(normalizeSale);
 let cart = readArrayStorage("pos_cart").filter(isRecord).map(normalizeCartItem);
+let cartDiscount = nonNegative(readStorage("pos_cart_discount",0));
+let cartDiscountType = readStorage("pos_cart_discount_type","nominal") === "percent" ? "percent" : "nominal";
 let auditLogs = readArrayStorage("pos_audit_logs").filter(isRecord).map(normalizeAuditLog).slice(0,500);
 let qrisImage = normalizeQrisImage(readStorage("pos_qris_image",""));
 let adminPinHash = normalizePinHash(readStorage("pos_admin_pin_hash",""));
@@ -92,6 +95,8 @@ const save = () => {
   localStorage.setItem("pos_products", JSON.stringify(products));
   localStorage.setItem("pos_sales", JSON.stringify(sales));
   localStorage.setItem("pos_cart", JSON.stringify(cart));
+  localStorage.setItem("pos_cart_discount", JSON.stringify(cartDiscount));
+  localStorage.setItem("pos_cart_discount_type", JSON.stringify(cartDiscountType));
   localStorage.setItem("pos_audit_logs", JSON.stringify(auditLogs));
   localStorage.setItem("pos_qris_image", JSON.stringify(qrisImage));
   localStorage.setItem("pos_admin_pin_hash", JSON.stringify(adminPinHash));
@@ -419,8 +424,24 @@ function renderProducts(){
   renderCashierProducts();
 }
 
-function cartTotal(){
+function cartSubtotal(){
   return cart.reduce((sum,item)=>sum+(Number(item.sellPrice||0)*Number(item.qty||0)),0);
+}
+
+function discountPercentValue(){
+  return Math.min(100, nonNegative(cartDiscount));
+}
+
+function cartDiscountValue(){
+  const subtotal = cartSubtotal();
+  if(cartDiscountType === "percent"){
+    return Math.min(subtotal, Math.round(subtotal * discountPercentValue() / 100));
+  }
+  return Math.min(subtotal, nonNegative(cartDiscount));
+}
+
+function cartTotal(){
+  return Math.max(0, cartSubtotal() - cartDiscountValue());
 }
 
 function renderCashChange(){
@@ -456,15 +477,25 @@ function renderLastReceiptButton(){
   document.getElementById("printLastReceipt").disabled = !latestTransactionId();
 }
 
+function transactionSubtotal(items){
+  return items.reduce((sum,item)=>sum+(Number(item.sellPrice||0)*Number(item.qty||0)),0);
+}
+
+function transactionDiscount(items){
+  return items.reduce((sum,item)=>sum+Number(item.discount||0),0);
+}
+
 function renderReceipt(transactionId){
   const items = sales.filter(s=>transactionKey(s)===transactionId);
   if(items.length===0) return false;
 
   const first = items[0];
+  const subtotal = transactionSubtotal(items);
+  const discount = transactionDiscount(items);
   const total = items.reduce((sum,item)=>sum+Number(item.revenue||0),0);
 
   document.getElementById("receiptPrintArea").innerHTML = `<div class="receipt-store">
-    <strong>MATCHA BEE X DAILY KOPI TO GO</strong>
+    <strong>MATCHA BEE x DAILY KOPI TO GO</strong>
     <span>Kasir &amp; Penjualan</span>
   </div>
   <div class="receipt-rule"></div>
@@ -477,19 +508,18 @@ function renderReceipt(transactionId){
   <strong class="receipt-section-title">Detail Pesanan</strong>
   <div class="receipt-items">${items.map((item,index)=>`<div class="receipt-item">
     <strong>${index+1}. ${escapeHtml(item.productName)}</strong>
-    <div class="receipt-row"><span>${item.qty} x ${rupiah(item.sellPrice)}</span><span>${rupiah(item.revenue)}</span></div>
+    <div class="receipt-row"><span>${item.qty} x ${rupiah(item.sellPrice)}</span><span>${rupiah(Number(item.sellPrice||0)*Number(item.qty||0))}</span></div>
     ${item.note ? `<small>Catatan: ${escapeHtml(item.note)}</small>` : ""}
   </div>`).join("")}</div>
   <div class="receipt-rule"></div>
-  <div class="receipt-row"><span>Subtotal</span><span>${rupiah(total)}</span></div>
-  <div class="receipt-row"><span>Diskon</span><span>${rupiah(0)}</span></div>
-  <div class="receipt-row"><span>PPN</span><span>${rupiah(0)}</span></div>
+  <div class="receipt-row"><span>Subtotal</span><span>${rupiah(subtotal)}</span></div>
+  <div class="receipt-row"><span>Diskon</span><span>${discount > 0 ? `-${rupiah(discount)}` : rupiah(0)}</span></div>
   <div class="receipt-rule"></div>
   <div class="receipt-row receipt-total"><strong>TOTAL</strong><strong>${rupiah(total)}</strong></div>
   <div class="receipt-rule"></div>
   <div class="receipt-footer">
     <span>Terima kasih sudah membeli 🙏</span>
-    <span>☕ Waktunya #Matcha Bee X Daily Kopi To Go</span>
+    <span>☕ Waktunya #Matcha Bee x Daily Kopi To Go</span>
     <span>📷 IG: @matcha_dailytogo</span>
   </div>`;
   currentReceiptTransactionId = transactionId;
@@ -508,15 +538,17 @@ function receiptWhatsappText(transactionId){
   if(items.length===0) return "";
 
   const first = items[0];
+  const subtotal = transactionSubtotal(items);
+  const discount = transactionDiscount(items);
   const total = items.reduce((sum,item)=>sum+Number(item.revenue||0),0);
   const itemLines = items.flatMap((item,index)=>[
     `${index+1}. ${item.productName}`,
-    `   ${item.qty} x ${rupiah(item.sellPrice)} = ${rupiah(item.revenue)}`,
+    `   ${item.qty} x ${rupiah(item.sellPrice)} = ${rupiah(Number(item.sellPrice||0)*Number(item.qty||0))}`,
     ...(item.note ? [`   Catatan: ${item.note}`] : []),
     ""
   ]);
   return [
-    "☕ *MATCHA BEE X DAILY KOPI TOGO*",
+    "☕ *MATCHA BEE x DAILY KOPI TOGO*",
     "Kasir & Penjualan",
     "",
     `No. Transaksi: ${transactionId}`,
@@ -530,9 +562,8 @@ function receiptWhatsappText(transactionId){
     ...itemLines,
     "---",
     "",
-    `Subtotal: ${rupiah(total)}`,
-    `Diskon: ${rupiah(0)}`,
-    `PPN: ${rupiah(0)}`,
+    `Subtotal: ${rupiah(subtotal)}`,
+    `Diskon: ${discount > 0 ? `-${rupiah(discount)}` : rupiah(0)}`,
     "",
     `*TOTAL: ${rupiah(total)}*`,
     "",
@@ -540,9 +571,186 @@ function receiptWhatsappText(transactionId){
     "",
     "Terima kasih sudah membeli 🙏",
     "",
-    "☕ Waktunya #Matcha Bee X Daily Kopi To Go",
+    "☕ Waktunya #Matcha Bee x Daily Kopi To Go",
     "📷 IG: @matcha_dailytogo"
   ].join("\n");
+}
+
+function receiptPngFilename(transactionId){
+  return `struk-${String(transactionId||"transaksi").replace(/[^a-z0-9-]+/gi,"-")}.png`;
+}
+
+function receiptCanvasBlob(canvas){
+  return new Promise((resolve,reject)=>{
+    canvas.toBlob(blob=>blob ? resolve(blob) : reject(new Error("Gagal membuat gambar struk.")),"image/png");
+  });
+}
+
+function wrapCanvasText(ctx,text,maxWidth){
+  const words = String(text||"").split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  words.forEach(word=>{
+    const testLine = line ? `${line} ${word}` : word;
+    if(ctx.measureText(testLine).width <= maxWidth){
+      line = testLine;
+      return;
+    }
+    if(line) lines.push(line);
+    line = word;
+  });
+  if(line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function receiptPngCanvas(transactionId){
+  const items = sales.filter(s=>transactionKey(s)===transactionId);
+  if(items.length===0) return null;
+
+  const first = items[0];
+  const subtotal = transactionSubtotal(items);
+  const discount = transactionDiscount(items);
+  const total = items.reduce((sum,item)=>sum+Number(item.revenue||0),0);
+  const scale = 2;
+  const width = 560;
+  const padding = 34;
+  const contentWidth = width - (padding * 2);
+  const tempCanvas = document.createElement("canvas");
+  const tempCtx = tempCanvas.getContext("2d");
+  tempCtx.font = "20px 'Courier New', monospace";
+
+  const rows = [];
+  const addText = (text, options={}) => rows.push({type:"text",text:String(text||""),...options});
+  const addRule = () => rows.push({type:"rule"});
+  const addRow = (left,right,options={}) => rows.push({type:"row",left:String(left||""),right:String(right||""),...options});
+
+  addText("MATCHA BEE x DAILY KOPI TO GO",{align:"center",bold:true,size:24});
+  addText("Kasir & Penjualan",{align:"center"});
+  addRule();
+  addRow("No. Transaksi:",transactionId);
+  addRow("Tanggal:",new Date(first.date).toLocaleString("id-ID"));
+  addRow("Metode Bayar:",salePayment(first));
+  addRule();
+  addText("Detail Pesanan",{align:"center",bold:true});
+  items.forEach((item,index)=>{
+    addText(`${index+1}. ${item.productName}`,{bold:true,wrap:true});
+    addRow(`${item.qty} x ${rupiah(item.sellPrice)}`,rupiah(Number(item.sellPrice||0)*Number(item.qty||0)));
+    if(item.note) addText(`Catatan: ${item.note}`,{italic:true,wrap:true,size:18});
+  });
+  addRule();
+  addRow("Subtotal",rupiah(subtotal));
+  addRow("Diskon",discount > 0 ? `-${rupiah(discount)}` : rupiah(0));
+  addRule();
+  addRow("TOTAL",rupiah(total),{bold:true,size:24});
+  addRule();
+  addText("Terima kasih sudah membeli",{align:"center"});
+  addText("Waktunya #Matcha Bee x Daily Kopi To Go",{align:"center",bold:true,size:18});
+  addText("IG: @matcha_dailytogo",{align:"center"});
+
+  const setFont = row => {
+    const size = row.size || 20;
+    const style = row.italic ? "italic " : "";
+    const weight = row.bold ? "700 " : "";
+    tempCtx.font = `${style}${weight}${size}px 'Courier New', monospace`;
+  };
+  let height = padding;
+  rows.forEach(row=>{
+    if(row.type==="rule"){
+      height += 24;
+      return;
+    }
+    setFont(row);
+    const lineCount = row.wrap ? wrapCanvasText(tempCtx,row.text,contentWidth).length : 1;
+    height += lineCount * ((row.size || 20) + 8);
+  });
+  height += padding;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale,scale);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0,0,width,height);
+  ctx.fillStyle = "#000";
+  ctx.textBaseline = "top";
+
+  const applyFont = row => {
+    const size = row.size || 20;
+    const style = row.italic ? "italic " : "";
+    const weight = row.bold ? "700 " : "";
+    ctx.font = `${style}${weight}${size}px 'Courier New', monospace`;
+  };
+  let y = padding;
+  rows.forEach(row=>{
+    if(row.type==="rule"){
+      ctx.save();
+      ctx.setLineDash([8,7]);
+      ctx.beginPath();
+      ctx.moveTo(padding,y+10);
+      ctx.lineTo(width-padding,y+10);
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+      y += 24;
+      return;
+    }
+    applyFont(row);
+    const size = row.size || 20;
+    const lineHeight = size + 8;
+    if(row.type==="row"){
+      const rightWidth = ctx.measureText(row.right).width;
+      ctx.fillText(row.left,padding,y);
+      ctx.fillText(row.right,width-padding-rightWidth,y);
+      y += lineHeight;
+      return;
+    }
+    const lines = row.wrap ? wrapCanvasText(ctx,row.text,contentWidth) : [row.text];
+    lines.forEach(line=>{
+      const textWidth = ctx.measureText(line).width;
+      const x = row.align==="center" ? (width-textWidth)/2 : padding;
+      ctx.fillText(line,x,y);
+      y += lineHeight;
+    });
+  });
+
+  return canvas;
+}
+
+function downloadReceiptPng(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function shouldUseNativeShare(){
+  const ua = navigator.userAgent || "";
+  return /Android|iPhone|iPad|iPod/i.test(ua);
+}
+
+async function copyReceiptPngToClipboard(blob){
+  if(typeof ClipboardItem !== "function" || !navigator.clipboard || !navigator.clipboard.write){
+    return false;
+  }
+  try {
+    await navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function openWhatsappChat(number, opener){
+  const url = `https://wa.me/${number}`;
+  if(opener && !opener.closed){
+    opener.location.href = url;
+    return;
+  }
+  window.open(url,"_blank","noopener");
 }
 
 function normalizeWhatsappNumber(value){
@@ -552,29 +760,83 @@ function normalizeWhatsappNumber(value){
   return digits ? `62${digits}` : "";
 }
 
-function whatsappCurrentReceipt(){
+async function whatsappCurrentReceipt(){
   const whatsappNumber = normalizeWhatsappNumber(document.getElementById("receiptCustomerWhatsapp").value);
   if(!/^62[0-9]{8,13}$/.test(whatsappNumber)){
     setPinMessage("receiptWhatsappMessage","Masukkan nomor WhatsApp customer yang valid.","#dc2626");
     return;
   }
-  const text = receiptWhatsappText(currentReceiptTransactionId);
-  if(!text){
+  const canvas = receiptPngCanvas(currentReceiptTransactionId);
+  if(!canvas){
     setPinMessage("receiptWhatsappMessage","Data struk tidak ditemukan.","#dc2626");
     return;
   }
-  window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`,"_blank","noopener");
-  setPinMessage("receiptWhatsappMessage","WhatsApp dibuka. Silakan periksa lalu kirim struk.","#16a34a");
+  const useNativeShare = shouldUseNativeShare();
+  const whatsappWindow = useNativeShare ? null : window.open("about:blank","_blank","noopener");
+  try {
+    const blob = await receiptCanvasBlob(canvas);
+    const filename = receiptPngFilename(currentReceiptTransactionId);
+    if(useNativeShare && typeof File === "function" && navigator.share && navigator.canShare){
+      const file = new File([blob],filename,{type:"image/png"});
+      if(navigator.canShare({files:[file]})){
+        try {
+          await navigator.share({
+            files:[file],
+            title:"Struk transaksi",
+            text:`Struk transaksi ${currentReceiptTransactionId}`
+          });
+          setPinMessage("receiptWhatsappMessage","Struk PNG siap dikirim lewat WhatsApp.","#16a34a");
+          return;
+        } catch (error) {
+          if(error && error.name === "AbortError"){
+            setPinMessage("receiptWhatsappMessage","Pengiriman struk PNG dibatalkan.","#dc2626");
+            return;
+          }
+        }
+      }
+    }
+    const copied = await copyReceiptPngToClipboard(blob);
+    downloadReceiptPng(blob,filename);
+    openWhatsappChat(whatsappNumber,whatsappWindow);
+    setPinMessage(
+      "receiptWhatsappMessage",
+      copied
+        ? "WhatsApp dibuka. Tekan Ctrl+V di chat untuk menempel struk PNG, atau lampirkan file PNG yang sudah diunduh."
+        : "WhatsApp dibuka. Lampirkan file PNG struk yang sudah diunduh.",
+      "#16a34a"
+    );
+  } catch {
+    if(whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
+    setPinMessage("receiptWhatsappMessage","Gagal membuat PNG struk. Coba ulangi pengiriman.","#dc2626");
+  }
 }
 
 function renderCart(){
   const body = document.getElementById("cartItems");
+  if(cart.length===0 && (cartDiscount > 0 || cartDiscountType !== "nominal")){
+    cartDiscount = 0;
+    cartDiscountType = "nominal";
+    save();
+  }
+  const subtotal = cartSubtotal();
+  const discount = cartDiscountValue();
   const total = cartTotal();
   const totalQty = cart.reduce((sum,item)=>sum+Number(item.qty||0),0);
   document.getElementById("cartTotal").textContent = rupiah(total);
-  document.getElementById("cartSubtotal").textContent = rupiah(total);
+  document.getElementById("cartSubtotal").textContent = rupiah(subtotal);
+  const discountCaption = cartDiscountType === "percent" && discount > 0 ? ` (${discountPercentValue()}%)` : "";
+  document.getElementById("cartDiscount").textContent = discount > 0 ? `-${rupiah(discount)}${discountCaption}` : rupiah(0);
   document.getElementById("checkoutTotal").textContent = rupiah(total);
   document.getElementById("cartItemCount").textContent = `${totalQty} item`;
+  const discountInput = document.getElementById("transactionDiscount");
+  if(discountInput && document.activeElement !== discountInput){
+    discountInput.value = cartDiscountType === "percent" ? (cartDiscount ? String(discountPercentValue()) : "") : formatMoneyInput(cartDiscount);
+    discountInput.inputMode = cartDiscountType === "percent" ? "decimal" : "numeric";
+    discountInput.placeholder = cartDiscountType === "percent" ? "10" : "0";
+  }
+  document.querySelectorAll("[data-discount-type]").forEach(button=>{
+    button.classList.toggle("active", button.dataset.discountType === cartDiscountType);
+  });
   renderCashChange();
 
   if(cart.length===0){
@@ -717,6 +979,8 @@ function refreshStoredData(){
   products = readArrayStorage("pos_products").filter(isRecord).map(normalizeProduct);
   sales = readArrayStorage("pos_sales").filter(isRecord).map(normalizeSale);
   cart = readArrayStorage("pos_cart").filter(isRecord).map(normalizeCartItem);
+  cartDiscount = nonNegative(readStorage("pos_cart_discount",0));
+  cartDiscountType = readStorage("pos_cart_discount_type","nominal") === "percent" ? "percent" : "nominal";
   auditLogs = readArrayStorage("pos_audit_logs").filter(isRecord).map(normalizeAuditLog).slice(0,500);
   qrisImage = normalizeQrisImage(readStorage("pos_qris_image",""));
   adminPinHash = normalizePinHash(readStorage("pos_admin_pin_hash",""));
@@ -1210,7 +1474,7 @@ function backupFilename(){
 }
 
 function downloadBackup(){
-  const backup = JSON.stringify({version:2,exportedAt:new Date().toISOString(),products,sales,cart,qrisImage,auditLogs},null,2);
+  const backup = JSON.stringify({version:2,exportedAt:new Date().toISOString(),products,sales,cart,cartDiscount,cartDiscountType,qrisImage,auditLogs},null,2);
   downloadBlob(backupFilename(),backup,"application/json");
 }
 
@@ -1368,6 +1632,30 @@ document.querySelectorAll(".money-input").forEach(input=>{
   };
 });
 
+document.querySelectorAll("[data-discount-type]").forEach(button=>{
+  button.onclick = () => {
+    cartDiscountType = button.dataset.discountType === "percent" ? "percent" : "nominal";
+    cartDiscount = 0;
+    document.getElementById("transactionDiscount").value = "";
+    save();
+    renderCart();
+    document.getElementById("transactionDiscount").focus();
+  };
+});
+
+document.getElementById("transactionDiscount").oninput = e => {
+  if(cartDiscountType === "percent"){
+    const value = String(e.target.value ?? "").replace(/[^0-9]/g,"").slice(0,3);
+    cartDiscount = Math.min(100, nonNegative(value));
+    e.target.value = cartDiscount ? String(cartDiscount) : "";
+  } else {
+    e.target.value = formatMoneyInput(e.target.value);
+    cartDiscount = moneyValue(e.target.value);
+  }
+  save();
+  renderCart();
+};
+
 document.getElementById("productForm").onsubmit = async e => {
   e.preventDefault();
   const id = document.getElementById("editId").value;
@@ -1478,13 +1766,21 @@ document.getElementById("checkoutCart").onclick = () => {
 
   const paymentMethod = document.getElementById("paymentMethod").value;
   const date = new Date().toISOString();
+  const subtotal = cartSubtotal();
+  const discount = cartDiscountValue();
   const total = cartTotal();
   const cashReceived = 0;
   const change = 0;
 
   const transactionId = createTransactionId();
-  cart.forEach(item=>{
-    const revenue = item.sellPrice * item.qty;
+  let remainingDiscount = discount;
+  cart.forEach((item,index)=>{
+    const grossRevenue = item.sellPrice * item.qty;
+    const itemDiscount = index === cart.length - 1
+      ? remainingDiscount
+      : Math.min(remainingDiscount, Math.round(discount * (grossRevenue / Math.max(1,subtotal))));
+    remainingDiscount -= itemDiscount;
+    const revenue = Math.max(0, grossRevenue - itemDiscount);
     const profit = revenue - (item.costPrice * item.qty);
     const productName = cartItemTitle(item);
     const note = isManualCartItem(item) ? cartItemSubtitle(item) : item.note;
@@ -1500,6 +1796,7 @@ document.getElementById("checkoutCart").onclick = () => {
       sellPrice:item.sellPrice,
       revenue,
       profit,
+      discount:itemDiscount,
       paymentMethod,
       cashReceived,
       change,
@@ -1508,9 +1805,13 @@ document.getElementById("checkoutCart").onclick = () => {
   });
   recordAudit("transaction","Transaksi berhasil",`${cart.reduce((sum,item)=>sum+item.qty,0)} item terjual melalui ${paymentMethod} dengan total ${rupiah(total)}.`,{level:"success",reference:transactionId});
   cart = [];
+  cartDiscount = 0;
+  cartDiscountType = "nominal";
   save();
   const cashReceivedInput = document.getElementById("cashReceived");
   if(cashReceivedInput) cashReceivedInput.value = "";
+  const discountInput = document.getElementById("transactionDiscount");
+  if(discountInput) discountInput.value = "";
   renderAll();
   setSaleMessage(`Checkout ${paymentMethod} berhasil. Total ${rupiah(total)}.`, "#16a34a");
   openReceipt(transactionId);
@@ -1519,6 +1820,8 @@ document.getElementById("checkoutCart").onclick = () => {
 document.getElementById("clearCart").onclick = () => {
   if(cart.length===0 || !confirm("Kosongkan seluruh keranjang?")) return;
   cart = [];
+  cartDiscount = 0;
+  cartDiscountType = "nominal";
   save();
   renderAll();
 };
@@ -1530,6 +1833,21 @@ document.querySelectorAll("[data-payment-option]").forEach(button=>{
     renderPaymentDetails();
   };
 });
+
+document.getElementById("toggleDiscountPanel").onclick = () => {
+  const panel = document.getElementById("discountPanel");
+  panel.hidden = !panel.hidden;
+  document.getElementById("toggleDiscountPanel").classList.toggle("active", !panel.hidden);
+  if(!panel.hidden) document.getElementById("transactionDiscount").focus();
+};
+
+document.getElementById("clearDiscount").onclick = () => {
+  cartDiscount = 0;
+  cartDiscountType = "nominal";
+  document.getElementById("transactionDiscount").value = "";
+  save();
+  renderCart();
+};
 
 document.getElementById("qrisImageFile").onchange = async e => {
   const file = e.target.files[0];
@@ -1573,8 +1891,8 @@ document.getElementById("exportReport").onclick = () => {
   const totalRevenue = data.reduce((sum,s)=>sum+Number(s.revenue||0),0);
   const totalProfit = data.reduce((sum,s)=>sum+Number(s.profit||0),0);
   const productSummary = productSalesSummary(data);
-  const detailRows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Omzet","Laba"]];
-  data.forEach(s=>detailRows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.revenue),Number(s.profit)]));
+  const detailRows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Diskon","Omzet","Laba"]];
+  data.forEach(s=>detailRows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.profit)]));
   const productRows = [["Produk","Kategori","Qty Terjual","Omzet","Modal","Laba"]];
   productSummary.forEach(item=>productRows.push([item.productName,item.category,item.qty,item.revenue,item.cost,item.profit]));
   const financeRows = [
@@ -1623,8 +1941,8 @@ document.getElementById("restoreData").onclick = () => {
 };
 
 document.getElementById("exportAllExcel").onclick = () => {
-  const rows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Omzet","Laba"]];
-  sales.forEach(s=>rows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.revenue),Number(s.profit)]));
+  const rows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Diskon","Omzet","Laba"]];
+  sales.forEach(s=>rows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.profit)]));
   exportExcel("seluruh-penjualan.xls","Seluruh Penjualan",rows);
   recordAudit("data","Seluruh penjualan diekspor",`${new Set(sales.map(transactionKey)).size} transaksi diekspor ke Excel.`,{level:"success"});
   dataToolsDialog.close();
@@ -1638,15 +1956,19 @@ document.getElementById("restoreFile").onchange = async e => {
     const validProducts = Array.isArray(data.products) && data.products.every(p=>isRecord(p) && typeof p.id==="string" && typeof p.name==="string");
     const validSales = Array.isArray(data.sales) && data.sales.every(s=>isRecord(s) && typeof s.id==="string" && typeof s.productName==="string");
     const validCart = data.cart===undefined || (Array.isArray(data.cart) && data.cart.every(item=>isRecord(item) && typeof item.id==="string" && typeof item.productName==="string"));
+    const validCartDiscount = data.cartDiscount===undefined || Number.isFinite(Number(data.cartDiscount));
+    const validCartDiscountType = data.cartDiscountType===undefined || ["nominal","percent"].includes(data.cartDiscountType);
     const validQrisImage = data.qrisImage===undefined || data.qrisImage==="" || normalizeQrisImage(data.qrisImage);
     const validAuditLogs = data.auditLogs===undefined || (Array.isArray(data.auditLogs) && data.auditLogs.every(isRecord));
-    if(!validProducts || !validSales || !validCart || !validQrisImage || !validAuditLogs){
+    if(!validProducts || !validSales || !validCart || !validCartDiscount || !validCartDiscountType || !validQrisImage || !validAuditLogs){
       throw new Error("Format backup tidak valid");
     }
     if(!confirm("Restore akan mengganti data saat ini. Lanjutkan?")) return;
     products = data.products.map(normalizeProduct);
     sales = data.sales.map(normalizeSale);
     cart = Array.isArray(data.cart) ? data.cart.map(normalizeCartItem) : [];
+    cartDiscount = nonNegative(data.cartDiscount);
+    cartDiscountType = data.cartDiscountType === "percent" ? "percent" : "nominal";
     qrisImage = normalizeQrisImage(data.qrisImage);
     auditLogs = Array.isArray(data.auditLogs) ? data.auditLogs.map(normalizeAuditLog).slice(0,500) : auditLogs;
     recordAudit("data","Restore data berhasil",`Data dipulihkan dari ${file.name}: ${products.length} produk dan ${new Set(sales.map(transactionKey)).size} transaksi.`,{level:"success"});
@@ -1739,6 +2061,7 @@ function resetIcon(name){
     cash:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9h.01"/><path d="M18 15h.01"/></svg>',
     bank:'<svg viewBox="0 0 24 24"><path d="M3 10h18"/><path d="M5 10l7-5 7 5"/><path d="M6 10v8"/><path d="M10 10v8"/><path d="M14 10v8"/><path d="M18 10v8"/><path d="M4 18h16"/></svg>',
     wallet:'<svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M4 7l3-3h13"/><path d="M16 13h4"/></svg>',
+    discount:'<svg viewBox="0 0 24 24"><path d="M20 12l-8 8-8-8V4h8l8 8z"/><path d="M8 8h.01"/><path d="M9 16l6-6"/><path d="M10 10h.01"/><path d="M14 16h.01"/></svg>',
     more:'<svg viewBox="0 0 24 24"><path d="M5 12h.01"/><path d="M12 12h.01"/><path d="M19 12h.01"/></svg>',
     database:'<svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>',
     download:'<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>',
@@ -1810,7 +2133,7 @@ function setupResetIcons(){
   document.querySelector('[data-payment-icon="cash"]').innerHTML = resetIcon("cash");
   document.querySelector('[data-payment-icon="qris"]').innerHTML = resetIcon("qris");
   document.querySelector('[data-payment-icon="transfer"]').innerHTML = resetIcon("bank");
-  document.querySelector('[data-payment-icon="more"]').innerHTML = resetIcon("more");
+  document.querySelector('[data-payment-icon="discount"]').innerHTML = resetIcon("discount");
   document.getElementById("saveTransactionIcon").innerHTML = resetIcon("receipt");
   document.getElementById("clearCartIcon").innerHTML = resetIcon("trash");
   document.getElementById("reportRefreshIcon").innerHTML = resetIcon("refresh");

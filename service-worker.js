@@ -1,4 +1,4 @@
-const CACHE_NAME = "daily-kopi-pos-v56";
+const CACHE_NAME = "daily-kopi-pos-v59";
 const filesToCache = [
   "./",
   "./index.html",
