@@ -90,6 +90,8 @@ let productSortMode = "name-asc";
 let productViewMode = "grid";
 let productPage = 1;
 let dashboardDateKey = "";
+let reportDateFromKey = "";
+let reportDateToKey = "";
 
 const save = () => {
   localStorage.setItem("pos_products", JSON.stringify(products));
@@ -289,18 +291,41 @@ function renderCashierCategories(){
   box.innerHTML = categories.map(category=>`<button class="cashier-category ${category===cashierCategoryFilter ? "active" : ""}" type="button" data-cashier-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join("");
 }
 
-function filterSales(type){
-  const now = new Date();
+function reportDateRange(){
+  const todayKey = localDateKey(new Date());
+  const fromInput = document.getElementById("reportDateFrom");
+  const toInput = document.getElementById("reportDateTo");
+  let fromKey = fromInput?.value || reportDateFromKey || todayKey;
+  let toKey = toInput?.value || reportDateToKey || todayKey;
+  let fromDate = dateFromLocalKey(fromKey);
+  let toDate = dateFromLocalKey(toKey);
+  if(fromDate > toDate){
+    [fromKey,toKey] = [toKey,fromKey];
+    [fromDate,toDate] = [toDate,fromDate];
+  }
+  fromDate.setHours(0,0,0,0);
+  toDate.setHours(23,59,59,999);
+  reportDateFromKey = fromKey;
+  reportDateToKey = toKey;
+  return {fromKey,toKey,fromDate,toDate};
+}
+
+function syncReportDateInputs(range=reportDateRange()){
+  const fromInput = document.getElementById("reportDateFrom");
+  const toInput = document.getElementById("reportDateTo");
+  if(fromInput) fromInput.value = range.fromKey;
+  if(toInput) toInput.value = range.toKey;
+}
+
+function reportDateLabel(range){
+  const format = date => date.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
+  return range.fromKey === range.toKey ? format(range.fromDate) : `${format(range.fromDate)} - ${format(range.toDate)}`;
+}
+
+function filterSalesByDateRange(range=reportDateRange()){
   return sales.filter(s=>{
     const d = new Date(s.date);
-    if(type==="daily") return d.toDateString() === now.toDateString();
-    if(type==="weekly"){
-      const week = new Date();
-      week.setDate(now.getDate()-7);
-      return d >= week && d <= now;
-    }
-    if(type==="monthly") return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
-    return true;
+    return !Number.isNaN(d.getTime()) && d >= range.fromDate && d <= range.toDate;
   });
 }
 
@@ -1194,12 +1219,14 @@ function productSalesSummary(data){
       productName:sale.productName,
       category:sale.category || "Umum",
       qty:0,
+      discount:0,
       revenue:0,
       cost:0,
       profit:0
     };
     const qty = Number(sale.qty||0);
     current.qty += qty;
+    current.discount += Number(sale.discount||0);
     current.revenue += Number(sale.revenue||0);
     current.cost += Number(sale.costPrice||0) * qty;
     current.profit += Number(sale.profit||0);
@@ -1226,6 +1253,10 @@ function renderReportProductSummary(data){
     <span class="report-product-metric">
       <b>${item.qty} item</b>
       <small>Qty</small>
+    </span>
+    <span class="report-product-metric report-product-discount">
+      <b>${item.discount > 0 ? `-${rupiah(item.discount)}` : rupiah(0)}</b>
+      <small>Diskon</small>
     </span>
     <span class="report-product-metric">
       <b>${rupiah(item.revenue)}</b>
@@ -1291,26 +1322,26 @@ function renderDashboard(){
 }
 
 function renderReport(){
-  const type = document.getElementById("reportType").value;
-  const data = filterSales(type);
+  const range = reportDateRange();
+  syncReportDateInputs(range);
+  const data = filterSalesByDateRange(range);
   const transactionCount = new Set(data.map(s=>s.transactionId || s.id)).size;
   const qtyTotal = data.reduce((a,b)=>a+Number(b.qty||0),0);
   const revenueTotal = data.reduce((a,b)=>a+Number(b.revenue||0),0);
   const profitTotal = data.reduce((a,b)=>a+Number(b.profit||0),0);
-  const periodLabels = {daily:"Daily",weekly:"Weekly",monthly:"Monthly"};
   document.getElementById("reportTrx").textContent = transactionCount;
   document.getElementById("reportQty").textContent = qtyTotal;
   document.getElementById("reportRevenue").textContent = rupiah(revenueTotal);
   document.getElementById("reportProfit").textContent = rupiah(profitTotal);
   document.getElementById("reportTrxCaption").textContent = `${transactionCount} transaksi`;
   document.getElementById("reportQtyCaption").textContent = `${qtyTotal} item`;
-  document.getElementById("reportPeriodLabel").textContent = periodLabels[type] || "Daily";
+  document.getElementById("reportPeriodLabel").textContent = reportDateLabel(range);
   renderReportProductSummary(data);
 
   const body = document.getElementById("reportTable");
   body.innerHTML = "";
   if(data.length===0){
-    body.innerHTML = `<tr class="report-empty-row"><td colspan="10">
+    body.innerHTML = `<tr class="report-empty-row"><td colspan="11">
       <div class="report-empty-state">
         <span class="report-empty-icon">${resetIcon("clipboardSearch")}</span>
         <strong>Belum ada transaksi pada periode ini.</strong>
@@ -1336,6 +1367,7 @@ function renderReport(){
       <td>${s.qty}</td>
       <td>${rupiah(s.costPrice)}</td>
       <td>${rupiah(s.sellPrice)}</td>
+      <td class="report-discount-value">${Number(s.discount||0) > 0 ? `-${rupiah(s.discount)}` : rupiah(0)}</td>
       <td>${rupiah(s.revenue)}</td>
       <td>${rupiah(s.profit)}</td>
       <td>${action}</td>
@@ -1600,12 +1632,13 @@ if(recentSalesTable) recentSalesTable.onclick = handleReceiptAction;
 document.getElementById("reportTable").onclick = e => {
   const focusButton = e.target.closest("[data-report-focus]");
   if(focusButton){
-    document.getElementById("reportType").focus();
+    document.getElementById("reportDateFrom").focus();
     return;
   }
   handleReceiptAction(e);
 };
 document.getElementById("refreshReport").onclick = renderReport;
+document.getElementById("applyReportRange").onclick = renderReport;
 document.getElementById("dashboardRange").onchange = renderDashboard;
 document.getElementById("dashboardDate").onchange = e => {
   dashboardDateKey = e.target.value || localDateKey(new Date());
@@ -1619,7 +1652,6 @@ document.querySelectorAll("[data-dashboard-products]").forEach(button=>{
 document.getElementById("printLastReceipt").onclick = () => openReceipt(latestTransactionId());
 document.getElementById("printReceipt").onclick = () => window.print();
 document.getElementById("whatsappReceipt").onclick = whatsappCurrentReceipt;
-document.getElementById("closeReceiptDialog").onclick = () => document.getElementById("receiptDialog").close();
 document.getElementById("closeReceiptButton").onclick = () => document.getElementById("receiptDialog").close();
 document.getElementById("receiptDialog").onclick = e => {
   if(e.target===document.getElementById("receiptDialog")) e.target.close();
@@ -1883,22 +1915,26 @@ document.getElementById("exportProduct").onclick = () => {
 };
 
 document.getElementById("exportReport").onclick = () => {
-  const type = document.getElementById("reportType").value;
-  const data = filterSales(type);
-  const periodLabels = {daily:"Daily",weekly:"Weekly",monthly:"Monthly"};
+  const range = reportDateRange();
+  syncReportDateInputs(range);
+  const data = filterSalesByDateRange(range);
   const totalTransactions = new Set(data.map(s=>s.transactionId || s.id)).size;
   const totalQty = data.reduce((sum,s)=>sum+Number(s.qty||0),0);
+  const totalDiscount = data.reduce((sum,s)=>sum+Number(s.discount||0),0);
   const totalRevenue = data.reduce((sum,s)=>sum+Number(s.revenue||0),0);
   const totalProfit = data.reduce((sum,s)=>sum+Number(s.profit||0),0);
   const productSummary = productSalesSummary(data);
   const detailRows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Modal","Jual","Diskon","Omzet","Laba"]];
   data.forEach(s=>detailRows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.costPrice),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.profit)]));
-  const productRows = [["Produk","Kategori","Qty Terjual","Omzet","Modal","Laba"]];
-  productSummary.forEach(item=>productRows.push([item.productName,item.category,item.qty,item.revenue,item.cost,item.profit]));
+  const productRows = [["Produk","Kategori","Qty Terjual","Diskon","Omzet","Modal","Laba"]];
+  productSummary.forEach(item=>productRows.push([item.productName,item.category,item.qty,item.discount,item.revenue,item.cost,item.profit]));
   const financeRows = [
-    ["Periode",periodLabels[type] || "Daily"],
+    ["Periode",reportDateLabel(range)],
+    ["Dari Tanggal",range.fromDate.toLocaleDateString("id-ID")],
+    ["Sampai Tanggal",range.toDate.toLocaleDateString("id-ID")],
     ["Total Transaksi",totalTransactions],
     ["Total Qty",totalQty],
+    ["Total Diskon",totalDiscount],
     ["Total Omzet",totalRevenue],
     ["Total Laba",totalProfit]
   ];
@@ -1984,7 +2020,12 @@ document.getElementById("restoreFile").onchange = async e => {
   }
 };
 
-document.getElementById("reportType").onchange = renderReport;
+document.getElementById("reportDateFrom").onchange = e => {
+  reportDateFromKey = e.target.value || localDateKey(new Date());
+};
+document.getElementById("reportDateTo").onchange = e => {
+  reportDateToKey = e.target.value || reportDateFromKey || localDateKey(new Date());
+};
 document.getElementById("auditSearchInput").oninput = renderAuditLog;
 document.getElementById("auditCategoryFilter").onchange = renderAuditLog;
 document.getElementById("auditPeriodFilter").onchange = renderAuditLog;

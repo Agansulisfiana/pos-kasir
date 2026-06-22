@@ -336,6 +336,12 @@ input:focus,select:focus{outline:0;border-color:var(--matcha);box-shadow:0 0 0 3
 .report-page.active{display:grid;gap:12px}
 .report-toolbar{display:flex;justify-content:flex-end;gap:10px;margin-top:-72px;margin-bottom:28px}
 .report-toolbar-select,.report-icon-button{height:48px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);box-shadow:0 5px 18px rgba(31,58,36,.04)}
+.report-date-range{display:flex;align-items:end;gap:10px;padding:8px;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:0 5px 18px rgba(31,58,36,.04)}
+.report-date-range label{display:grid;gap:4px;min-width:160px}
+.report-date-range label span{color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase}
+.report-date-range input{height:40px;padding:0 10px;border:1px solid var(--line);background:#fff;font-weight:800}
+.report-date-separator{align-self:center;padding:18px 2px 0;color:var(--muted);font-weight:900}
+.report-apply-button{min-height:40px;padding:0 16px;white-space:nowrap}
 .report-icon-button svg,.report-period-display svg,.report-stat-icon svg,.report-export-btn svg,.report-hint svg,.report-empty-icon svg,.report-empty-action svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .report-toolbar-select{display:grid;place-items:center;width:150px;padding:0 10px}
 .report-toolbar-select select{height:46px;padding:0 30px 0 2px;border:0;background:transparent;font-weight:800}.report-toolbar-select select:focus{box-shadow:none}
@@ -344,7 +350,7 @@ input:focus,select:focus{outline:0;border-color:var(--matcha);box-shadow:0 0 0 3
 .report-summary-card,.report-product-card,.report-table-card{border-radius:14px;padding:22px;background:#fffdf8}
 .report-card-title{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center}
 .report-card-title h3{margin:0;font-size:20px}.report-card-title p{margin:4px 0 0;color:var(--muted);font-weight:600}
-.report-period-display{display:flex;align-items:center;justify-content:flex-start;gap:10px;justify-self:end;width:150px;min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--matcha-dark)}
+.report-period-display{display:flex;align-items:center;justify-content:flex-start;gap:10px;justify-self:end;width:auto;min-width:230px;min-height:48px;padding:0 14px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--matcha-dark)}
 .report-period-display strong{font-family:var(--font-heading),var(--font-body),Arial,sans-serif}
 .report-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:26px}
 .report-stat-card{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:18px;min-height:116px;padding:20px 22px;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden;box-shadow:0 8px 24px rgba(31,58,36,.05)}
@@ -365,12 +371,13 @@ input:focus,select:focus{outline:0;border-color:var(--matcha);box-shadow:0 0 0 3
 .report-product-total svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .report-product-total strong{font-family:var(--font-heading),var(--font-body),Arial,sans-serif;white-space:nowrap}
 .report-product-summary{display:grid;gap:10px;margin-top:18px}
-.report-product-row{display:grid;grid-template-columns:34px minmax(0,1fr) 120px 140px 140px;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.report-product-row{display:grid;grid-template-columns:34px minmax(0,1fr) 110px 130px 140px 140px;gap:14px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .report-product-rank{display:grid;place-items:center;width:28px;height:28px;border-radius:999px;background:var(--matcha-dark);color:#fff;font-weight:900}
 .report-product-name{display:grid;gap:3px;min-width:0}.report-product-name strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.report-product-name small{color:var(--muted);font-weight:700}
 .report-product-metric{display:grid;gap:3px;text-align:right}.report-product-metric b{color:var(--matcha-dark);font-family:var(--font-heading),var(--font-body),Arial,sans-serif;white-space:nowrap}.report-product-metric small{color:var(--muted);font-size:12px;font-weight:800}
+.report-product-discount b,.report-discount-value{color:#b42318}
 .report-table-card{padding-top:18px}.report-table-wrap{min-height:360px}
-.report-table{margin-top:0}.report-table th{height:52px;background:#f4f4ec;color:var(--matcha-dark)}.report-table td{background:#fff}
+.report-table{min-width:1320px;margin-top:0}.report-table th{height:52px;background:#f4f4ec;color:var(--matcha-dark)}.report-table td{background:#fff}
 .report-empty-row td{padding:0!important;border-bottom:0;background:#fff!important}
 .report-empty-state{display:grid;place-items:center;gap:10px;min-height:300px;padding:34px 18px;text-align:center}
 .report-empty-icon{display:grid;place-items:center;width:96px;height:96px;border-radius:999px;background:#eaf3df;color:var(--matcha-dark)}
@@ -730,7 +737,9 @@ button,input,select{font:inherit}
   .product-page-header,.product-pagination{display:grid;gap:12px}.product-header-actions{justify-content:stretch}.product-header-actions .btn{width:100%}
   .product-summary-grid,.product-toolbar,.product-card-grid,.product-card-grid.list-view,.product-card-grid.list-view .product-manage-card{grid-template-columns:1fr}
   .product-card-main{grid-template-columns:88px minmax(0,1fr)}.product-card-image{width:88px;height:88px}.product-view-toggle{justify-content:flex-start}.product-pagination-controls{flex-wrap:wrap}
-  .report-page.active{gap:14px}.report-toolbar{display:flex;margin-top:0;margin-bottom:0}
+  .report-page.active{gap:14px}.report-toolbar{display:flex;margin-top:0;margin-bottom:0;align-items:stretch}
+  .report-date-range{flex:1;flex-wrap:wrap}
+  .report-date-range label{min-width:min(180px,100%);flex:1}
   .report-card-title,.report-stats,.report-summary-actions{grid-template-columns:1fr}
   .report-period-display,.report-product-total{justify-self:start}
   .report-summary-card,.report-product-card,.report-table-card{padding:16px}.report-stat-card{min-height:98px}.report-table-wrap{min-height:300px}
@@ -1068,6 +1077,21 @@ button,input,select{font:inherit}
   .report-period-display,
   .report-product-total{
     justify-self:stretch;
+    width:100%;
+  }
+
+  .report-date-range{
+    display:grid;
+    grid-template-columns:1fr;
+    width:100%;
+  }
+
+  .report-date-separator{
+    padding:0;
+    text-align:center;
+  }
+
+  .report-apply-button{
     width:100%;
   }
 

@@ -1,4 +1,4 @@
-Daily Kopi ToGo - Aplikasi POS Kasir Sederhana
+Matcha Bee x Daily Kopi To Go - Aplikasi POS Kasir
 
 Aplikasi POS berbasis web untuk kasir dan penjualan harian Daily Kopi ToGo.
 Data aplikasi disimpan di browser menggunakan LocalStorage, sehingga bisa

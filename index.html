@@ -449,14 +449,18 @@ if ("serviceWorker" in navigator) {
 
     <section id="laporan" class="page report-page">
       <div class="report-toolbar">
-        <label class="report-toolbar-select">
-          <span class="visually-hidden">Periode laporan</span>
-          <select id="reportType">
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-        </label>
+        <div class="report-date-range" aria-label="Rentang tanggal laporan">
+          <label>
+            <span>Dari</span>
+            <input type="date" id="reportDateFrom" />
+          </label>
+          <span class="report-date-separator">s/d</span>
+          <label>
+            <span>Sampai</span>
+            <input type="date" id="reportDateTo" />
+          </label>
+          <button id="applyReportRange" class="btn report-apply-button" type="button">Terapkan</button>
+        </div>
         <button id="refreshReport" class="report-icon-button" type="button" aria-label="Refresh laporan">
           <span id="reportRefreshIcon"></span>
         </button>
@@ -466,11 +470,11 @@ if ("serviceWorker" in navigator) {
         <div class="report-card-title">
           <div>
             <h3>Laporan Penjualan</h3>
-            <p>Pilih periode laporan</p>
+            <p>Pilih rentang tanggal laporan</p>
           </div>
           <div class="report-period-display">
             <span id="reportPeriodIcon"></span>
-            <strong id="reportPeriodLabel">Daily</strong>
+            <strong id="reportPeriodLabel">Hari ini</strong>
           </div>
         </div>
 
@@ -550,6 +554,7 @@ if ("serviceWorker" in navigator) {
                 <th>Qty</th>
                 <th>Modal</th>
                 <th>Jual</th>
+                <th>Diskon</th>
                 <th>Omzet</th>
                 <th>Laba</th>
                 <th>Struk</th>
@@ -677,7 +682,6 @@ if ("serviceWorker" in navigator) {
         <h3>Transaksi Berhasil</h3>
         <!-- <p class="muted">Struk siap dicetak menggunakan printer thermal 58 mm.</p> -->
       </div>
-      <button id="closeReceiptDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
     </div>
     <div id="receiptPrintArea" class="receipt-paper"></div>
     <div class="receipt-whatsapp no-print">
