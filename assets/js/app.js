@@ -343,8 +343,19 @@ function reportDateRange(){
   const todayKey = localDateKey(new Date());
   const fromInput = document.getElementById("reportDateFrom");
   const toInput = document.getElementById("reportDateTo");
-  let fromKey = fromInput?.value || reportDateFromKey || todayKey;
-  let toKey = toInput?.value || reportDateToKey || todayKey;
+  // Accept either DD/MM/YYYY (user-facing) or yyyy-mm-dd (internal key)
+  const resolveKey = (val) => {
+    if(!val) return null;
+    if(String(val).includes('/')){
+      const d = parseDateDMY(val);
+      return d ? localDateKey(d) : null;
+    }
+    // assume already a local key like 2026-07-07
+    return String(val);
+  };
+
+  let fromKey = resolveKey(fromInput?.value) || reportDateFromKey || todayKey;
+  let toKey = resolveKey(toInput?.value) || reportDateToKey || todayKey;
   let fromDate = dateFromLocalKey(fromKey);
   let toDate = dateFromLocalKey(toKey);
   if(fromDate > toDate){
@@ -361,12 +372,13 @@ function reportDateRange(){
 function syncReportDateInputs(range=reportDateRange()){
   const fromInput = document.getElementById("reportDateFrom");
   const toInput = document.getElementById("reportDateTo");
+  // populate date inputs with internal localDateKey values (YYYY-MM-DD) so the browser shows calendar selection
   if(fromInput) fromInput.value = range.fromKey;
   if(toInput) toInput.value = range.toKey;
 }
 
 function reportDateLabel(range){
-  const format = date => formatDateShortDMY(date);
+  const format = date => formatDateDMY(date);
   return range.fromKey === range.toKey ? format(range.fromDate) : `${format(range.fromDate)} - ${format(range.toDate)}`;
 }
 
@@ -2069,10 +2081,14 @@ document.getElementById("restoreFile").onchange = async e => {
 };
 
 document.getElementById("reportDateFrom").onchange = e => {
-  reportDateFromKey = e.target.value || localDateKey(new Date());
+  const v = e.target.value;
+  const parsed = v && v.includes('/') ? parseDateDMY(v) : null;
+  reportDateFromKey = parsed ? localDateKey(parsed) : (v || localDateKey(new Date()));
 };
 document.getElementById("reportDateTo").onchange = e => {
-  reportDateToKey = e.target.value || reportDateFromKey || localDateKey(new Date());
+  const v = e.target.value;
+  const parsed = v && v.includes('/') ? parseDateDMY(v) : null;
+  reportDateToKey = parsed ? localDateKey(parsed) : (v || reportDateFromKey || localDateKey(new Date()));
 };
 document.getElementById("auditSearchInput").oninput = renderAuditLog;
 document.getElementById("auditCategoryFilter").onchange = renderAuditLog;
