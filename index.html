@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="stylesheet" href="assets/css/splash.css" />
+  <link rel="stylesheet" href="assets/css/animations.css" />
   <style>
     @media (display-mode: standalone) {
       #splashScreen { display: none !important; }
@@ -452,12 +453,12 @@ if ("serviceWorker" in navigator) {
         <div class="report-date-range" aria-label="Rentang tanggal laporan">
           <label>
             <span>Dari</span>
-            <input type="date" id="reportDateFrom" />
+            <input type="text" id="reportDateFrom" placeholder="DD/MM/YYYY" inputmode="numeric" />
           </label>
           <span class="report-date-separator">s/d</span>
           <label>
             <span>Sampai</span>
-            <input type="date" id="reportDateTo" />
+            <input type="text" id="reportDateTo" placeholder="DD/MM/YYYY" inputmode="numeric" />
           </label>
           <button id="applyReportRange" class="btn report-apply-button" type="button">Terapkan</button>
         </div>
@@ -913,6 +914,7 @@ if ("serviceWorker" in navigator) {
   </dialog>
 
   <script src="assets/js/app.js"></script>
+  <script src="assets/js/enhance.js"></script>
   <script>
     window.addEventListener("load", () => {
       const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;

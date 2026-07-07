@@ -1,5 +1,51 @@
 const rupiah = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n||0);
 
+/* Date formatting helpers — DD/MM/YYYY (tanggal/bulan/tahun) */
+const pad2 = n => String(n).padStart(2,"0");
+const formatDateDMY = date => {
+  const d = new Date(date);
+  if(Number.isNaN(d.getTime())) return "-";
+  return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`;
+};
+const formatDateTimeDMY = date => {
+  const d = new Date(date);
+  if(Number.isNaN(d.getTime())) return "-";
+  return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+const formatDateShortDMY = date => {
+  const d = new Date(date);
+  if(Number.isNaN(d.getTime())) return "-";
+  const months = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+  return `${pad2(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}`;
+};
+const formatDateLongDMY = date => {
+  const d = new Date(date);
+  if(Number.isNaN(d.getTime())) return "-";
+  const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+  const days = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+};
+const formatTimeHM = date => {
+  const d = new Date(date);
+  if(Number.isNaN(d.getTime())) return "-";
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+};
+
+const parseDateDMY = (dmyString) => {
+  const parts = String(dmyString).split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const year = parseInt(parts[2], 10);
+    const d = new Date(year, month, day);
+    // Validate if the parsed date matches the input
+    if (d.getDate() === day && d.getMonth() === month && d.getFullYear() === year) {
+        return d;
+    }
+  }
+  return null;
+};
+
 function readStorage(key, fallback){
   try {
     return JSON.parse(localStorage.getItem(key)) || fallback;
@@ -320,7 +366,7 @@ function syncReportDateInputs(range=reportDateRange()){
 }
 
 function reportDateLabel(range){
-  const format = date => date.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"});
+  const format = date => formatDateShortDMY(date);
   return range.fromKey === range.toKey ? format(range.fromDate) : `${format(range.fromDate)} - ${format(range.toDate)}`;
 }
 
@@ -528,7 +574,7 @@ function renderReceipt(transactionId){
   <div class="receipt-rule"></div>
   <div class="receipt-meta">
     <span>No. Transaksi:</span><strong>${escapeHtml(transactionId)}</strong>
-    <span>Tanggal:</span><strong>${escapeHtml(new Date(first.date).toLocaleString("id-ID"))}</strong>
+    <span>Tanggal:</span><strong>${escapeHtml(formatDateTimeDMY(first.date))}</strong>
     <span>Metode Bayar:</span><strong>${escapeHtml(salePayment(first))}</strong>
   </div>
   <div class="receipt-rule"></div>
@@ -579,7 +625,7 @@ function receiptWhatsappText(transactionId){
     "Kasir & Penjualan",
     "",
     `No. Transaksi: ${transactionId}`,
-    `Tanggal: ${new Date(first.date).toLocaleString("id-ID")}`,
+    `Tanggal: ${formatDateTimeDMY(first.date)}`,
     `Metode Bayar: ${salePayment(first)}`,
     "",
     "---",
@@ -655,7 +701,7 @@ function receiptPngCanvas(transactionId){
   addText("Kasir & Penjualan",{align:"center"});
   addRule();
   addRow("No. Transaksi:",transactionId);
-  addRow("Tanggal:",new Date(first.date).toLocaleString("id-ID"));
+  addRow("Tanggal:",formatDateTimeDMY(first.date));
   addRow("Metode Bayar:",salePayment(first));
   addRule();
   addText("Detail Pesanan",{align:"center",bold:true});
@@ -984,7 +1030,7 @@ function renderAuditLog(){
         <p>${escapeHtml(log.detail)}</p>
         ${log.reference ? `<span class="audit-log-reference">Ref: ${escapeHtml(log.reference)}</span>` : ""}
       </div>
-      <time class="audit-log-time" datetime="${escapeHtml(log.date)}"><strong>${escapeHtml(date.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}))}</strong><small>${escapeHtml(date.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}))}</small></time>
+      <time class="audit-log-time" datetime="${escapeHtml(log.date)}"><strong>${escapeHtml(formatDateShortDMY(date))}</strong><small>${escapeHtml(formatTimeHM(date))}</small></time>
     </article>`;
   }).join("");
 }
@@ -1106,7 +1152,7 @@ function renderSalesChart(){
     return `<g><line x1="${pad.left}" y1="${y}" x2="${pad.left+innerWidth}" y2="${y}" class="chart-grid-line"/><text x="12" y="${y+4}" class="chart-axis-label">${label}</text></g>`;
   }).join("");
   const highlight = points.at(-1);
-  const lastDate = highlight.date.toLocaleDateString("id-ID",{day:"numeric",month:"short"});
+  const lastDate = formatDateShortDMY(highlight.date);
 
   document.getElementById("salesChart").innerHTML = `<svg class="dashboard-line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik ${metricLabel} ${range} hari terakhir">
     <defs>
@@ -1118,8 +1164,8 @@ function renderSalesChart(){
     ${ySteps}
     <polygon points="${area}" fill="url(#salesAreaGradient)"/>
     <polyline points="${line}" fill="none" class="chart-line"/>
-    ${points.map(point=>`<circle cx="${point.x}" cy="${point.y}" r="4" class="chart-point"><title>${point.date.toLocaleDateString("id-ID")} - ${valueLabel(point.value)}</title></circle>`).join("")}
-    ${days.map((day,index)=>`<text x="${pointX(index)}" y="${height-12}" class="chart-date-label ${index===days.length-1 ? "active" : ""}">${day.date.toLocaleDateString("id-ID",{day:"numeric",month:"short"})}</text>`).join("")}
+    ${points.map(point=>`<circle cx="${point.x}" cy="${point.y}" r="4" class="chart-point"><title>${formatDateDMY(point.date)} - ${valueLabel(point.value)}</title></circle>`).join("")}
+    ${days.map((day,index)=>`<text x="${pointX(index)}" y="${height-12}" class="chart-date-label ${index===days.length-1 ? "active" : ""}">${formatDateShortDMY(day.date)}</text>`).join("")}
     <g class="chart-tooltip" transform="translate(${Math.min(highlight.x-42,width-120)} ${Math.max(10,highlight.y-58)})">
       <rect width="94" height="44" rx="6"/>
       <text x="10" y="17">${escapeHtml(lastDate)}</text>
@@ -1286,7 +1332,7 @@ function renderDashboard(){
   const yesterdayQty = yesterday.reduce((a,b)=>a+Number(b.qty||0),0);
   const dashboardDateInput = document.getElementById("dashboardDate");
   if(dashboardDateInput) dashboardDateInput.value = dashboardDateKey;
-  document.getElementById("dashboardToolbarDate").textContent = selectedDate.toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
+  document.getElementById("dashboardToolbarDate").textContent = formatDateLongDMY(selectedDate);
   const dashboardMiniFilter = document.querySelector(".dashboard-mini-filter");
   if(dashboardMiniFilter) dashboardMiniFilter.textContent = localDateKey(new Date()) === dashboardDateKey ? "Hari Ini" : "Tanggal Dipilih";
   document.getElementById("dashOmzet").textContent = rupiah(todayRevenue);
@@ -1310,7 +1356,7 @@ function renderDashboard(){
     const action = receiptButtons.has(receiptId) ? "" : receiptAction(receiptId);
     receiptButtons.add(receiptId);
     recent.innerHTML += `<tr>
-      <td>${new Date(s.date).toLocaleString("id-ID")}</td>
+      <td>${formatDateTimeDMY(s.date)}</td>
       <td>${escapeHtml(s.productName)}</td>
       <td>${escapeHtml(s.note || "-")}</td>
       <td>${escapeHtml(salePayment(s))}</td>
@@ -1362,7 +1408,7 @@ function renderReport(){
     const action = receiptButtons.has(receiptId) ? "" : receiptAction(receiptId);
     receiptButtons.add(receiptId);
     body.innerHTML += `<tr>
-      <td>${new Date(s.date).toLocaleString("id-ID")}</td>
+      <td>${formatDateTimeDMY(s.date)}</td>
       <td>${escapeHtml(s.productName)}</td>
       <td>${escapeHtml(s.note || "-")}</td>
       <td>${escapeHtml(salePayment(s))}</td>
@@ -1530,7 +1576,7 @@ function exportWorkbook(filename, sheets){
   downloadBlob(filename, `\ufeff${workbook}`, "application/vnd.ms-excel;charset=utf-8");
 }
 
-document.getElementById("todayText").textContent = new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+document.getElementById("todayText").textContent = formatDateLongDMY(new Date());
 
 document.querySelectorAll(".nav").forEach(btn=>{
   btn.onclick = () => {
@@ -1927,13 +1973,13 @@ document.getElementById("exportReport").onclick = () => {
   const totalProfit = data.reduce((sum,s)=>sum+saleProfitTotal(s),0);
   const productSummary = productSalesSummary(data);
   const detailRows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Harga Jual","Diskon","Total/Omset","Modal","Total Modal","Laba"]];
-  data.forEach(s=>detailRows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.costPrice),saleCostTotal(s),saleProfitTotal(s)]));
+  data.forEach(s=>detailRows.push([formatDateTimeDMY(s.date),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.costPrice),saleCostTotal(s),saleProfitTotal(s)]));
   const productRows = [["Produk","Kategori","Qty Terjual","Diskon","Omset","Total Modal","Laba"]];
   productSummary.forEach(item=>productRows.push([item.productName,item.category,item.qty,item.discount,item.revenue,item.cost,item.profit]));
   const financeRows = [
     ["Periode",reportDateLabel(range)],
-    ["Dari Tanggal",range.fromDate.toLocaleDateString("id-ID")],
-    ["Sampai Tanggal",range.toDate.toLocaleDateString("id-ID")],
+    ["Dari Tanggal",formatDateDMY(range.fromDate)],
+    ["Sampai Tanggal",formatDateDMY(range.toDate)],
     ["Total Transaksi",totalTransactions],
     ["Total Qty",totalQty],
     ["Total Diskon",totalDiscount],
@@ -1980,7 +2026,7 @@ document.getElementById("restoreData").onclick = () => {
 
 document.getElementById("exportAllExcel").onclick = () => {
   const rows = [["Tanggal","ID Transaksi","Produk","Kategori","Keterangan","Pembayaran","Qty","Harga Jual","Diskon","Total/Omset","Modal","Total Modal","Laba"]];
-  sales.forEach(s=>rows.push([new Date(s.date).toLocaleString("id-ID"),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.costPrice),saleCostTotal(s),saleProfitTotal(s)]));
+  sales.forEach(s=>rows.push([formatDateTimeDMY(s.date),s.transactionId||s.id,s.productName,s.category||"Umum",s.note||"-",salePayment(s),Number(s.qty),Number(s.sellPrice),Number(s.discount||0),Number(s.revenue),Number(s.costPrice),saleCostTotal(s),saleProfitTotal(s)]));
   exportExcel("seluruh-penjualan.xls","Seluruh Penjualan",rows);
   recordAudit("data","Seluruh penjualan diekspor",`${new Set(sales.map(transactionKey)).size} transaksi diekspor ke Excel.`,{level:"success"});
   dataToolsDialog.close();
@@ -2317,7 +2363,7 @@ function transactionPeriodMatches(dateValue){
 function transactionDateLabel(dateValue){
   const date = new Date(dateValue);
   if(Number.isNaN(date.getTime())) return "-";
-  return `${date.toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})} • ${date.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}`;
+  return `${formatDateShortDMY(date)} • ${formatTimeHM(date)}`;
 }
 
 function resetItemInputs(type){
@@ -2427,7 +2473,7 @@ function renderResetLists(){
     </span>
   </label>`);
 
-  renderResetList("transactions","resetTransactionsList",transactionSummaries(),"Belum ada transaksi yang bisa dipilih.",transaction=>`<label class="reset-item reset-transaction-item payment-${paymentKind(transaction.paymentMethod)}" data-reset-row="transactions" data-reset-date="${escapeHtml(transaction.date)}" data-reset-search="${escapeHtml(`${transaction.id} ${transaction.names.join(" ")} ${transaction.paymentMethod} ${new Date(transaction.date).toLocaleString("id-ID")} ${transaction.total}`)}">
+  renderResetList("transactions","resetTransactionsList",transactionSummaries(),"Belum ada transaksi yang bisa dipilih.",transaction=>`<label class="reset-item reset-transaction-item payment-${paymentKind(transaction.paymentMethod)}" data-reset-row="transactions" data-reset-date="${escapeHtml(transaction.date)}" data-reset-search="${escapeHtml(`${transaction.id} ${transaction.names.join(" ")} ${transaction.paymentMethod} ${formatDateTimeDMY(transaction.date)} ${transaction.total}`)}">
     <input type="checkbox" data-reset-item="transactions" value="${escapeHtml(transaction.id)}" />
     <span class="reset-item-symbol">${resetIcon("receipt")}</span>
     <span class="reset-item-main">
