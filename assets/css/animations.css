@@ -376,6 +376,74 @@ input,select{
 }
 
 /* ============================================================
+   PAKET B — Micro-interactions (B1-B3)
+   ============================================================ */
+
+/* ---- B1. Nav icon bounce on activation ---- */
+.nav.active .nav-icon{
+  animation:posNavIconBounce 0.45s var(--ease-spring);
+}
+@keyframes posNavIconBounce{
+  0%{transform:scale(0.6) rotate(-8deg)}
+  50%{transform:scale(1.18) rotate(4deg)}
+  100%{transform:scale(1) rotate(0)}
+}
+/* Subtle bounce on hover for non-active nav icons */
+.nav:hover:not(.active) .nav-icon{
+  animation:posNavIconNudge 0.3s var(--ease-spring);
+}
+@keyframes posNavIconNudge{
+  0%,100%{transform:translateX(0)}
+  40%{transform:translateX(3px)}
+}
+
+/* ---- B2. Input focus glow (matcha ring) ---- */
+input:focus,select:focus{
+  border-color:var(--matcha) !important;
+  box-shadow:0 0 0 4px rgba(47,111,69,0.16) !important;
+  transition:box-shadow 0.18s var(--ease-out-expo),
+             border-color 0.18s ease !important;
+}
+/* Soft glow for search/filter wrapper inputs (no double border) */
+.cashier-search input:focus,
+.product-search input:focus,
+.reset-search:focus,
+.reset-period-filter select:focus,
+.reset-pin-wrap input:focus,
+.dashboard-toolbar-select select:focus{
+  box-shadow:none !important;
+}
+.cashier-search:focus-within,
+.product-search:focus-within,
+.reset-search-wrap:focus-within,
+.reset-period-filter:focus-within,
+.reset-pin-wrap:focus-within,
+.dashboard-toolbar-select:focus-within{
+  border-color:var(--matcha) !important;
+  box-shadow:0 0 0 4px rgba(47,111,69,0.16) !important;
+  transition:box-shadow 0.18s var(--ease-out-expo),
+             border-color 0.18s ease;
+}
+
+/* ---- B3. Cart item slide-out on remove ---- */
+.cart-item.removing{
+  animation:posCartOut 0.28s var(--ease-out-expo) forwards;
+  pointer-events:none;
+}
+@keyframes posCartOut{
+  to{
+    opacity:0;
+    transform:translateX(120%) scale(0.92);
+    max-height:0;
+    margin-top:0;
+    margin-bottom:0;
+    padding-top:0;
+    padding-bottom:0;
+    border-width:0;
+  }
+}
+
+/* ============================================================
    Reduced motion — disable all animations for accessibility
    ============================================================ */
 @media (prefers-reduced-motion:reduce){
@@ -387,6 +455,8 @@ input,select{
   .page.active{animation:none}
   .reveal-in{opacity:1;transform:none}
   .cart-item{animation:none}
+  .cart-item.removing{opacity:0;transform:none;max-height:0}
+  .nav.active .nav-icon,.nav:hover:not(.active) .nav-icon{animation:none}
   .report-empty-icon,.empty-state{animation:none}
 }
 

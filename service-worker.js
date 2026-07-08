@@ -1,10 +1,13 @@
-const CACHE_NAME = "daily-kopi-pos-v63";
+const CACHE_NAME = "daily-kopi-pos-v65";
 const filesToCache = [
   "./",
   "./index.html",
   "./assets/css/style.css",
   "./assets/css/splash.css",
   "./assets/css/animations.css",
+  "./assets/vendor/flatpickr/flatpickr.min.css",
+  "./assets/vendor/flatpickr/flatpickr.min.js",
+  "./assets/vendor/flatpickr/l10n-id.js",
   "./assets/js/app.js",
   "./assets/js/enhance.js",
   "./manifest.json",

@@ -400,6 +400,45 @@
     setupMetricObservers();
   }
 
+  /* ============================================================
+     10. Cart item slide-out on remove
+         Intercepts the remove-cart click in the CAPTURE phase
+         (fires before app.js bubble handler), plays the slide-out
+         animation, then re-dispatches a synthetic click so app.js
+         performs the real removal + renderAll(). Purely additive —
+         does NOT import or override changeCartItem/renderCart.
+         The re-dispatch is skipped by the capture handler because
+         the item already carries the "removing" class.
+      ============================================================ */
+  if (!prefersReducedMotion) {
+    var cartItemsContainer = document.getElementById("cartItems");
+    if (cartItemsContainer) {
+      cartItemsContainer.addEventListener("click", function (e) {
+        var removeBtn = e.target.closest("[data-cart-remove]");
+        if (!removeBtn) return;
+        var cartItem = removeBtn.closest(".cart-item");
+        /* If already removing, let the event pass through to app.js */
+        if (!cartItem || cartItem.classList.contains("removing")) return;
+
+        /* Prevent app.js from removing immediately */
+        e.stopPropagation();
+        e.preventDefault();
+
+        cartItem.classList.add("removing");
+        haptic([12, 24]);
+
+        /* After the slide-out finishes, let app.js do the real removal */
+        setTimeout(function () {
+          removeBtn.dispatchEvent(new MouseEvent("click", {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          }));
+        }, 280);
+      }, true); /* capture phase — runs before app.js bubble handler */
+    }
+  }
+
   /* Active immediately — no initial animation needed */
   setupPageObserver();
   setupDialogObservers();

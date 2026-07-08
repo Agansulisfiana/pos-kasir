@@ -372,9 +372,18 @@ function reportDateRange(){
 function syncReportDateInputs(range=reportDateRange()){
   const fromInput = document.getElementById("reportDateFrom");
   const toInput = document.getElementById("reportDateTo");
-  // populate date inputs with internal localDateKey values (YYYY-MM-DD) so the browser shows calendar selection
-  if(fromInput) fromInput.value = range.fromKey;
-  if(toInput) toInput.value = range.toKey;
+  // Use Flatpickr API when available so the displayed value is DD/MM/YYYY.
+  // Fall back to raw value (YYYY-MM-DD) if Flatpickr is not loaded.
+  if(fromInput && fromInput._flatpickr){
+    fromInput._flatpickr.setDate(range.fromDate, false);
+  } else if(fromInput){
+    fromInput.value = range.fromKey;
+  }
+  if(toInput && toInput._flatpickr){
+    toInput._flatpickr.setDate(range.toDate, false);
+  } else if(toInput){
+    toInput.value = range.toKey;
+  }
 }
 
 function reportDateLabel(range){
@@ -1343,7 +1352,11 @@ function renderDashboard(){
   const yesterdayProfit = yesterday.reduce((a,b)=>a+Number(b.profit||0),0);
   const yesterdayQty = yesterday.reduce((a,b)=>a+Number(b.qty||0),0);
   const dashboardDateInput = document.getElementById("dashboardDate");
-  if(dashboardDateInput) dashboardDateInput.value = dashboardDateKey;
+  if(dashboardDateInput && dashboardDateInput._flatpickr){
+    dashboardDateInput._flatpickr.setDate(selectedDate, false);
+  } else if(dashboardDateInput){
+    dashboardDateInput.value = dashboardDateKey;
+  }
   document.getElementById("dashboardToolbarDate").textContent = formatDateLongDMY(selectedDate);
   const dashboardMiniFilter = document.querySelector(".dashboard-mini-filter");
   if(dashboardMiniFilter) dashboardMiniFilter.textContent = localDateKey(new Date()) === dashboardDateKey ? "Hari Ini" : "Tanggal Dipilih";
@@ -1701,7 +1714,9 @@ document.getElementById("refreshReport").onclick = renderReport;
 document.getElementById("applyReportRange").onclick = renderReport;
 document.getElementById("dashboardRange").onchange = renderDashboard;
 document.getElementById("dashboardDate").onchange = e => {
-  dashboardDateKey = e.target.value || localDateKey(new Date());
+  const v = e.target.value;
+  const parsed = v && v.includes('/') ? parseDateDMY(v) : null;
+  dashboardDateKey = parsed ? localDateKey(parsed) : (v || localDateKey(new Date()));
   renderDashboard();
 };
 document.getElementById("dashboardChartMetric").onchange = renderSalesChart;
@@ -2090,6 +2105,59 @@ document.getElementById("reportDateTo").onchange = e => {
   const parsed = v && v.includes('/') ? parseDateDMY(v) : null;
   reportDateToKey = parsed ? localDateKey(parsed) : (v || reportDateFromKey || localDateKey(new Date()));
 };
+
+/* ============================================================
+   Flatpickr — calendar date picker with DD/MM/YYYY display
+   Initialized on report + dashboard date inputs. Falls back
+   gracefully to native <input type="date"> if Flatpickr is
+   unavailable.
+   ============================================================ */
+function initReportDatePickers(){
+  if(typeof flatpickr === "undefined") return;
+  const fpConfig = {
+    dateFormat: "d/m/Y",
+    locale: (flatpickr.l10ns && flatpickr.l10ns.id) || "id",
+    allowInput: true,
+    clickOpens: true,
+    disableMobile: true,
+    onChange: function(selectedDates, dateStr, instance){
+      if(!selectedDates[0]) return;
+      const key = localDateKey(selectedDates[0]);
+      if(instance.element.id === "reportDateFrom"){
+        reportDateFromKey = key;
+      } else if(instance.element.id === "reportDateTo"){
+        reportDateToKey = key;
+      } else if(instance.element.id === "dashboardDate"){
+        dashboardDateKey = key;
+      }
+    }
+  };
+  const fromInput = document.getElementById("reportDateFrom");
+  const toInput = document.getElementById("reportDateTo");
+  if(fromInput && !fromInput._flatpickr){
+    // The input may already hold a YYYY-MM-DD value from syncReportDateInputs
+    // fallback. Convert it to a Date for Flatpickr's defaultDate so it does
+    // not misparse the ISO value against the d/m/Y display format.
+    const rawFrom = fromInput.value;
+    const defaultFrom = rawFrom ? dateFromLocalKey(rawFrom) : (reportDateFromKey ? dateFromLocalKey(reportDateFromKey) : new Date());
+    fromInput.value = "";
+    flatpickr(fromInput, Object.assign({}, fpConfig, { defaultDate: defaultFrom }));
+  }
+  if(toInput && !toInput._flatpickr){
+    const rawTo = toInput.value;
+    const defaultTo = rawTo ? dateFromLocalKey(rawTo) : (reportDateToKey ? dateFromLocalKey(reportDateToKey) : new Date());
+    toInput.value = "";
+    flatpickr(toInput, Object.assign({}, fpConfig, { defaultDate: defaultTo }));
+  }
+  const dashInput = document.getElementById("dashboardDate");
+  if(dashInput && !dashInput._flatpickr){
+    const rawDash = dashInput.value;
+    const defaultDash = rawDash ? dateFromLocalKey(rawDash) : (dashboardDateKey ? dateFromLocalKey(dashboardDateKey) : new Date());
+    dashInput.value = "";
+    flatpickr(dashInput, Object.assign({}, fpConfig, { defaultDate: defaultDash }));
+  }
+}
+initReportDatePickers();
 document.getElementById("auditSearchInput").oninput = renderAuditLog;
 document.getElementById("auditCategoryFilter").onchange = renderAuditLog;
 document.getElementById("auditPeriodFilter").onchange = renderAuditLog;
