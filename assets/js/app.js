@@ -406,8 +406,8 @@ function renderCategories(){
 function productStockStatus(product){
   const remaining = stockEnd(product);
   if(remaining<=0) return {key:"empty",label:"Habis",tone:"empty"};
-  if(remaining<=3) return {key:"critical",label:"Hampir Habis",tone:"critical"};
-  if(remaining<=8) return {key:"low",label:"Rendah",tone:"low"};
+  if(remaining<3) return {key:"critical",label:"Hampir Habis",tone:"critical"};
+  if(remaining<5) return {key:"low",label:"Rendah",tone:"low"};
   return {key:"safe",label:"Aman",tone:"safe"};
 }
 
@@ -821,11 +821,6 @@ function downloadReceiptPng(blob, filename){
   URL.revokeObjectURL(url);
 }
 
-function shouldUseNativeShare(){
-  const ua = navigator.userAgent || "";
-  return /Android|iPhone|iPad|iPod/i.test(ua);
-}
-
 async function copyReceiptPngToClipboard(blob){
   if(typeof ClipboardItem !== "function" || !navigator.clipboard || !navigator.clipboard.write){
     return false;
@@ -839,7 +834,8 @@ async function copyReceiptPngToClipboard(blob){
 }
 
 function openWhatsappChat(number, opener){
-  const url = `https://wa.me/${number}`;
+  const textMsg = encodeURIComponent("Halo, ini struk transaksi Anda. Terima kasih telah berbelanja!");
+  const url = `https://wa.me/${number}?text=${textMsg}`;
   if(opener && !opener.closed){
     opener.location.href = url;
     return;
@@ -865,43 +861,27 @@ async function whatsappCurrentReceipt(){
     setPinMessage("receiptWhatsappMessage","Data struk tidak ditemukan.","#dc2626");
     return;
   }
-  const useNativeShare = shouldUseNativeShare();
-  const whatsappWindow = useNativeShare ? null : window.open("about:blank","_blank","noopener");
+  
+  const whatsappWindow = window.open("about:blank","_blank","noopener");
+  
   try {
     const blob = await receiptCanvasBlob(canvas);
     const filename = receiptPngFilename(currentReceiptTransactionId);
-    if(useNativeShare && typeof File === "function" && navigator.share && navigator.canShare){
-      const file = new File([blob],filename,{type:"image/png"});
-      if(navigator.canShare({files:[file]})){
-        try {
-          await navigator.share({
-            files:[file],
-            title:"Struk transaksi",
-            text:`Struk transaksi ${currentReceiptTransactionId}`
-          });
-          setPinMessage("receiptWhatsappMessage","Struk PNG siap dikirim lewat WhatsApp.","#16a34a");
-          return;
-        } catch (error) {
-          if(error && error.name === "AbortError"){
-            setPinMessage("receiptWhatsappMessage","Pengiriman struk PNG dibatalkan.","#dc2626");
-            return;
-          }
-        }
-      }
-    }
+    
     const copied = await copyReceiptPngToClipboard(blob);
     downloadReceiptPng(blob,filename);
     openWhatsappChat(whatsappNumber,whatsappWindow);
+    
     setPinMessage(
       "receiptWhatsappMessage",
       copied
-        ? "WhatsApp dibuka. Tekan Ctrl+V di chat untuk menempel struk PNG, atau lampirkan file PNG yang sudah diunduh."
+        ? "WhatsApp dibuka. Tekan 'Tempel' di kolom chat untuk mengirim struk PNG."
         : "WhatsApp dibuka. Lampirkan file PNG struk yang sudah diunduh.",
       "#16a34a"
     );
   } catch {
     if(whatsappWindow && !whatsappWindow.closed) whatsappWindow.close();
-    setPinMessage("receiptWhatsappMessage","Gagal membuat PNG struk. Coba ulangi pengiriman.","#dc2626");
+    setPinMessage("receiptWhatsappMessage","Gagal memproses struk. Coba ulangi.","#dc2626");
   }
 }
 
@@ -1110,7 +1090,7 @@ function renderTopProducts(today){
 function renderLowStockAlerts(){
   const alerts = products
     .map(p=>({name:p.name,remaining:stockEnd(p),image:productImage(p)}))
-    .filter(p=>p.remaining<=5)
+    .filter(p=>p.remaining<5)
     .sort((a,b)=>a.remaining-b.remaining || a.name.localeCompare(b.name,"id"));
   const box = document.getElementById("lowStockAlerts");
   if(alerts.length===0){
@@ -1449,11 +1429,7 @@ function renderReport(){
 }
 
 function refreshDashboardData(){
-  refreshStoredData();
-  renderDashboard();
-  renderProductSummary();
-  renderCashierProducts();
-  renderCart();
+  window.location.reload();
 }
 
 function renderAll(){
@@ -1705,7 +1681,6 @@ if(recentSalesTable) recentSalesTable.onclick = handleReceiptAction;
 document.getElementById("reportTable").onclick = e => {
   const focusButton = e.target.closest("[data-report-focus]");
   if(focusButton){
-    document.getElementById("reportDateFrom").focus();
     return;
   }
   handleReceiptAction(e);
@@ -1746,7 +1721,6 @@ document.querySelectorAll("[data-discount-type]").forEach(button=>{
     document.getElementById("transactionDiscount").value = "";
     save();
     renderCart();
-    document.getElementById("transactionDiscount").focus();
   };
 });
 
@@ -1945,7 +1919,6 @@ document.getElementById("toggleDiscountPanel").onclick = () => {
   const panel = document.getElementById("discountPanel");
   panel.hidden = !panel.hidden;
   document.getElementById("toggleDiscountPanel").classList.toggle("active", !panel.hidden);
-  if(!panel.hidden) document.getElementById("transactionDiscount").focus();
 };
 
 document.getElementById("clearDiscount").onclick = () => {
@@ -2117,7 +2090,7 @@ function initReportDatePickers(){
   const fpConfig = {
     dateFormat: "d/m/Y",
     locale: (flatpickr.l10ns && flatpickr.l10ns.id) || "id",
-    allowInput: true,
+    allowInput: false,
     clickOpens: true,
     disableMobile: true,
     onChange: function(selectedDates, dateStr, instance){

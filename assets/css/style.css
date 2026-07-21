@@ -744,7 +744,7 @@ button,input,select{font:inherit}
   .report-period-display,.report-product-total{justify-self:start}
   .report-summary-card,.report-product-card,.report-table-card{padding:16px}.report-stat-card{min-height:98px}.report-table-wrap{min-height:300px}
   .report-product-row{grid-template-columns:30px minmax(0,1fr);gap:10px}.report-product-metric{grid-column:2;text-align:left}
-  .audit-hero{display:grid}.audit-hero-actions,.audit-action-button{width:100%}.audit-stats,.audit-toolbar{grid-template-columns:1fr}.audit-log-item{grid-template-columns:auto minmax(0,1fr)}.audit-log-time{grid-column:2;text-align:left}
+  .audit-hero{display:grid;grid-template-columns:1fr;gap:16px}.audit-hero-actions{display:grid;grid-template-columns:1fr}.audit-action-button{width:100%}.audit-stats,.audit-toolbar{grid-template-columns:1fr}.audit-log-item{grid-template-columns:auto minmax(0,1fr)}.audit-log-time{grid-column:2;text-align:left}
   .reset-dialog{width:min(100vw - 18px,680px)}
   .reset-header{grid-template-columns:auto minmax(0,1fr) auto;padding:18px 16px 14px}.reset-header-icon{width:46px;height:46px}.reset-header-copy h3{font-size:20px}
   #resetDialog .dialog-form{padding:0 16px}.reset-tabs,.reset-search-row,.reset-footer{grid-template-columns:1fr}

@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="stylesheet" href="assets/css/splash.css" />
   <link rel="stylesheet" href="assets/css/animations.css" />
+  <link rel="stylesheet" href="assets/css/premium.css" />
   <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
   <style>
     @media (display-mode: standalone) {
@@ -693,7 +694,7 @@ if ("serviceWorker" in navigator) {
       <div id="receiptWhatsappMessage" class="pin-message"></div>
     </div>
     <div class="dialog-actions receipt-actions no-print">
-      <button id="closeReceiptButton" class="btn secondary" type="button">Tutup</button>
+      <button id="closeReceiptButton" class="btn secondary" type="button" autofocus>Tutup</button>
       <button id="whatsappReceipt" class="btn secondary" type="button">Kirim PNG WhatsApp</button>
       <button id="printReceipt" class="btn" type="button">Cetak Struk</button>
     </div>
@@ -706,7 +707,7 @@ if ("serviceWorker" in navigator) {
         <h3>Backup &amp; Restore</h3>
         <p>Simpan cadangan JSON, pulihkan data, atau export seluruh penjualan ke Excel.</p>
       </div>
-      <button id="closeDataToolsDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+      <button id="closeDataToolsDialog" class="dialog-close" type="button" aria-label="Tutup" autofocus>x</button>
     </div>
     <div class="utility-options">
       <button id="backupData" class="utility-option" type="button">
@@ -741,7 +742,7 @@ if ("serviceWorker" in navigator) {
         <h3>Tentang Aplikasi</h3>
         <p>Informasi identitas Daily Kopi ToGo POS.</p>
       </div>
-      <button id="closeAboutAppDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+      <button id="closeAboutAppDialog" class="dialog-close" type="button" aria-label="Tutup" autofocus>x</button>
     </div>
     <div class="about-app-body">
       <div class="about-hero">
@@ -770,7 +771,7 @@ if ("serviceWorker" in navigator) {
         <h3 id="adminPinTitle">Buat PIN Admin</h3>
         <p id="adminPinHelp">PIN digunakan untuk melindungi menu reset data.</p>
       </div>
-      <button id="closeAdminPinDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+      <button id="closeAdminPinDialog" class="dialog-close" type="button" aria-label="Tutup" autofocus>x</button>
     </div>
     <form id="adminPinForm" class="dialog-form utility-form">
       <label id="currentPinField" class="utility-field" hidden>PIN Saat Ini
@@ -806,7 +807,7 @@ if ("serviceWorker" in navigator) {
         <h3>Bersihkan Audit Log</h3>
         <p>Masukkan PIN Admin untuk menghapus seluruh riwayat aktivitas.</p>
       </div>
-      <button id="closeAuditClearDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+      <button id="closeAuditClearDialog" class="dialog-close" type="button" aria-label="Tutup" autofocus>x</button>
     </div>
     <form id="auditClearForm" class="dialog-form utility-form">
       <label class="utility-field">PIN Admin
@@ -830,7 +831,7 @@ if ("serviceWorker" in navigator) {
         <h3>Reset Data</h3>
         <p>Pilih data yang ingin dihapus. Tindakan ini tidak bisa dibatalkan.</p>
       </div>
-      <button id="closeResetDialog" class="dialog-close" type="button" aria-label="Tutup">x</button>
+      <button id="closeResetDialog" class="dialog-close" type="button" aria-label="Tutup" autofocus>x</button>
     </div>
     <form id="resetDataForm" class="dialog-form">
       <div class="reset-picker">
