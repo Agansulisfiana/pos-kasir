@@ -705,108 +705,286 @@ function receiptPngCanvas(transactionId){
   const subtotal = transactionSubtotal(items);
   const discount = transactionDiscount(items);
   const total = items.reduce((sum,item)=>sum+Number(item.revenue||0),0);
-  const scale = 2;
-  const width = 560;
-  const padding = 34;
+
+  const scale = 3; // higher res for better quality
+  const width = 600;
+  const padding = 48;
   const contentWidth = width - (padding * 2);
+  
   const tempCanvas = document.createElement("canvas");
   const tempCtx = tempCanvas.getContext("2d");
-  tempCtx.font = "20px 'Courier New', monospace";
-
+  tempCtx.textBaseline = "top";
+  
   const rows = [];
-  const addText = (text, options={}) => rows.push({type:"text",text:String(text||""),...options});
-  const addRule = () => rows.push({type:"rule"});
-  const addRow = (left,right,options={}) => rows.push({type:"row",left:String(left||""),right:String(right||""),...options});
+  const addSpace = (size) => rows.push({type: "space", size});
+  const addText = (text, options={}) => rows.push({type:"text", text:String(text||""), ...options});
+  const addDivider = (options={}) => rows.push({type:"divider", ...options});
+  const addRow = (left, right, options={}) => rows.push({type:"row", left:String(left||""), right:String(right||""), ...options});
 
-  addText("MATCHA BEE x DAILY KOPI TO GO",{align:"center",bold:true,size:24});
-  addText("Kasir & Penjualan",{align:"center"});
-  addRule();
-  addRow("No. Transaksi:",transactionId);
-  addRow("Tanggal:",formatDateTimeDMY(first.date));
-  addRow("Metode Bayar:",salePayment(first));
-  addRule();
-  addText("Detail Pesanan",{align:"center",bold:true});
-  items.forEach((item,index)=>{
-    addText(`${index+1}. ${item.productName}`,{bold:true,wrap:true});
-    addRow(`${item.qty} x ${rupiah(item.sellPrice)}`,rupiah(Number(item.sellPrice||0)*Number(item.qty||0)));
-    if(item.note) addText(`Catatan: ${item.note}`,{italic:true,wrap:true,size:18});
+  // Header Banner
+  rows.push({type: "banner"}); 
+  rows.push({type: "logo_overlap"});
+  addSpace(64); // space for logo overlap
+
+  // Store Name
+  addText("MATCHA BEE", {align: "center", bold: true, size: 28, color: "#111827", heading: true});
+  addSpace(4);
+  addText("x DAILY KOPI TO GO", {align: "center", bold: true, size: 18, color: "#111827", heading: true});
+  addSpace(12);
+  addText("E-Receipt Penjualan", {align: "center", size: 16, color: "#6b7280"});
+  addSpace(32);
+
+  addDivider({color: "#f3f4f6", thickness: 2});
+  addSpace(24);
+
+  // Order Details
+  addText("Rincian Pesanan", {bold: true, size: 18, color: "#111827", heading: true});
+  addSpace(16);
+  
+  const formattedDate = formatDateTimeDMY(first.date);
+  addRow("Waktu Pesanan", formattedDate, {size: 15, colorLeft: "#6b7280", colorRight: "#111827", boldRight: true});
+  addSpace(12);
+  addRow("No. Transaksi", transactionId, {size: 15, colorLeft: "#6b7280", colorRight: "#111827", boldRight: true});
+  addSpace(12);
+  addRow("Metode Bayar", salePayment(first), {size: 15, colorLeft: "#6b7280", colorRight: "#111827", boldRight: true});
+  
+  addSpace(24);
+  addDivider({color: "#e5e7eb", thickness: 2, dashed: true});
+  addSpace(24);
+
+  // Items List
+  items.forEach((item) => {
+    rows.push({
+      type: "item",
+      qty: item.qty,
+      name: item.productName,
+      price: rupiah(Number(item.sellPrice||0) * Number(item.qty||0)),
+      note: item.note
+    });
+    addSpace(20);
   });
-  addRule();
-  addRow("Subtotal",rupiah(subtotal));
-  addRow("Diskon",discount > 0 ? `-${rupiah(discount)}` : rupiah(0));
-  addRule();
-  addRow("TOTAL",rupiah(total),{bold:true,size:24});
-  addRule();
-  addText("Terima kasih sudah membeli",{align:"center"});
-  addText("Waktunya #Matcha Bee x Daily Kopi To Go",{align:"center",bold:true,size:18});
-  addText("IG: @matcha_dailytogo",{align:"center"});
 
-  const setFont = row => {
-    const size = row.size || 20;
-    const style = row.italic ? "italic " : "";
-    const weight = row.bold ? "700 " : "";
-    tempCtx.font = `${style}${weight}${size}px 'Courier New', monospace`;
+  addSpace(4);
+  addDivider({color: "#e5e7eb", thickness: 2, dashed: true});
+  addSpace(24);
+
+  // Summary
+  addRow("Subtotal", rupiah(subtotal), {size: 16, colorLeft: "#4b5563", colorRight: "#111827", boldRight: true});
+  if (discount > 0) {
+    addSpace(12);
+    addRow("Diskon", `-${rupiah(discount)}`, {size: 16, colorLeft: "#4b5563", colorRight: "#ef4444", boldRight: true});
+  }
+  
+  addSpace(24);
+  addDivider({color: "#f3f4f6", thickness: 2});
+  addSpace(24);
+
+  // Grand Total
+  addRow("Total", rupiah(total), {size: 24, boldLeft: true, boldRight: true, colorLeft: "#111827", colorRight: "#111827", heading: true});
+  addSpace(32);
+
+  // Footer
+  addDivider({color: "#f3f4f6", thickness: 2});
+  addSpace(24);
+  addText("Terima kasih atas pesanan Anda!", {align: "center", bold: true, size: 16, color: "#111827", heading: true});
+  addSpace(8);
+  addText("Ikuti IG kami di @matcha_dailytogo", {align: "center", size: 15, color: "#6b7280"});
+  addSpace(40);
+
+  const getFont = (size, bold, useHeading) => {
+    const family = useHeading ? "'Plus Jakarta Sans', system-ui, sans-serif" : "'Inter', system-ui, sans-serif";
+    const weight = bold ? "700" : "500";
+    return `${weight} ${size}px ${family}`;
   };
-  let height = padding;
-  rows.forEach(row=>{
-    if(row.type==="rule"){
-      height += 24;
-      return;
+
+  let height = 0;
+  
+  // First pass to calculate height
+  rows.forEach(row => {
+    if (row.type === "banner") {
+      height += 120;
+    } else if (row.type === "logo_overlap") {
+      height += 0;
+    } else if (row.type === "space") {
+      height += row.size;
+    } else if (row.type === "divider") {
+      height += row.thickness;
+    } else if (row.type === "text") {
+      tempCtx.font = getFont(row.size, row.bold, row.heading);
+      const lines = wrapCanvasText(tempCtx, row.text, contentWidth);
+      height += lines.length * (row.size * 1.5);
+    } else if (row.type === "row") {
+      height += row.size * 1.5;
+    } else if (row.type === "item") {
+      const nameWidth = contentWidth - 48 - 120; // qty and price approx width
+      tempCtx.font = getFont(16, true, false);
+      const nameLines = wrapCanvasText(tempCtx, row.name, nameWidth);
+      height += nameLines.length * (16 * 1.5);
+      
+      if (row.note) {
+        tempCtx.font = getFont(14, false, false);
+        const noteLines = wrapCanvasText(tempCtx, `Catatan: ${row.note}`, nameWidth);
+        height += 4 + (noteLines.length * (14 * 1.5));
+      }
     }
-    setFont(row);
-    const lineCount = row.wrap ? wrapCanvasText(tempCtx,row.text,contentWidth).length : 1;
-    height += lineCount * ((row.size || 20) + 8);
   });
-  height += padding;
 
   const canvas = document.createElement("canvas");
   canvas.width = width * scale;
   canvas.height = height * scale;
   const ctx = canvas.getContext("2d");
-  ctx.scale(scale,scale);
-  ctx.fillStyle = "#fff";
-  ctx.fillRect(0,0,width,height);
-  ctx.fillStyle = "#000";
+  ctx.scale(scale, scale);
   ctx.textBaseline = "top";
 
-  const applyFont = row => {
-    const size = row.size || 20;
-    const style = row.italic ? "italic " : "";
-    const weight = row.bold ? "700 " : "";
-    ctx.font = `${style}${weight}${size}px 'Courier New', monospace`;
-  };
-  let y = padding;
-  rows.forEach(row=>{
-    if(row.type==="rule"){
+  // Base background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
+  let y = 0;
+  
+  rows.forEach(row => {
+    if (row.type === "banner") {
+      ctx.fillStyle = "#143821";
+      ctx.fillRect(0, 0, width, 120);
+      
+      // Draw a subtle pattern on the banner
       ctx.save();
-      ctx.setLineDash([8,7]);
-      ctx.beginPath();
-      ctx.moveTo(padding,y+10);
-      ctx.lineTo(width-padding,y+10);
-      ctx.strokeStyle = "#000";
+      ctx.strokeStyle = "rgba(255,255,255,0.05)";
       ctx.lineWidth = 2;
+      ctx.beginPath();
+      for(let i=0; i<width; i+=20) {
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i-40, 120);
+      }
       ctx.stroke();
       ctx.restore();
-      y += 24;
-      return;
-    }
-    applyFont(row);
-    const size = row.size || 20;
-    const lineHeight = size + 8;
-    if(row.type==="row"){
+      
+      y += 120;
+    } else if (row.type === "logo_overlap") {
+      const logoImg = document.querySelector('img.logo');
+      if(logoImg && logoImg.complete && logoImg.naturalWidth > 0){
+        const logoSize = 100;
+        const logoX = (width - logoSize) / 2;
+        const logoY = 120 - (logoSize / 2);
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(logoX + logoSize/2, logoY + logoSize/2, (logoSize/2) + 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "rgba(0,0,0,0.1)";
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 4;
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+        ctx.restore();
+      } else {
+        // Fallback
+        const logoSize = 100;
+        const logoX = (width - logoSize) / 2;
+        const logoY = 120 - (logoSize / 2);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(logoX + logoSize/2, logoY + logoSize/2, (logoSize/2) + 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.shadowColor = "rgba(0,0,0,0.1)";
+        ctx.shadowBlur = 12;
+        ctx.shadowOffsetY = 4;
+        ctx.fill();
+        
+        ctx.beginPath();
+        ctx.arc(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 0, Math.PI * 2);
+        ctx.fillStyle = "#143821";
+        ctx.fill();
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.font = getFont(32, true, true);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("MB", logoX + logoSize/2, logoY + logoSize/2);
+        ctx.restore();
+        ctx.textBaseline = "top";
+      }
+    } else if (row.type === "space") {
+      y += row.size;
+    } else if (row.type === "divider") {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(padding, y + row.thickness/2);
+      ctx.lineTo(width - padding, y + row.thickness/2);
+      ctx.strokeStyle = row.color || "#e5e7eb";
+      ctx.lineWidth = row.thickness;
+      if (row.dashed) ctx.setLineDash([8, 8]);
+      ctx.stroke();
+      ctx.restore();
+      y += row.thickness;
+    } else if (row.type === "text") {
+      ctx.font = getFont(row.size, row.bold, row.heading);
+      ctx.fillStyle = row.color || "#111827";
+      const lines = wrapCanvasText(ctx, row.text, contentWidth);
+      const lineHeight = row.size * 1.5;
+      lines.forEach(line => {
+        const textWidth = ctx.measureText(line).width;
+        let x = padding;
+        if (row.align === "center") x = (width - textWidth) / 2;
+        if (row.align === "right") x = width - padding - textWidth;
+        ctx.fillText(line, x, y);
+        y += lineHeight;
+      });
+    } else if (row.type === "row") {
+      const lineHeight = row.size * 1.5;
+      
+      ctx.font = getFont(row.size, row.boldLeft, row.heading);
+      ctx.fillStyle = row.colorLeft || "#111827";
+      ctx.fillText(row.left, padding, y);
+      
+      ctx.font = getFont(row.size, row.boldRight, row.heading);
+      ctx.fillStyle = row.colorRight || "#111827";
       const rightWidth = ctx.measureText(row.right).width;
-      ctx.fillText(row.left,padding,y);
-      ctx.fillText(row.right,width-padding-rightWidth,y);
+      ctx.fillText(row.right, width - padding - rightWidth, y);
+      
       y += lineHeight;
-      return;
+    } else if (row.type === "item") {
+      const qtyWidth = 48;
+      const priceStr = row.price;
+      
+      ctx.font = getFont(16, true, false);
+      const priceWidth = ctx.measureText(priceStr).width;
+      
+      const nameWidth = contentWidth - qtyWidth - Math.max(priceWidth, 80);
+      
+      ctx.font = getFont(16, true, false);
+      ctx.fillStyle = "#111827";
+      
+      ctx.fillText(`${row.qty}x`, padding, y);
+      
+      const nameLines = wrapCanvasText(ctx, row.name, nameWidth);
+      const lineHeight = 16 * 1.5;
+      
+      nameLines.forEach((line, i) => {
+        ctx.fillText(line, padding + qtyWidth, y + (i * lineHeight));
+      });
+      
+      ctx.fillText(priceStr, width - padding - priceWidth, y);
+      
+      y += nameLines.length * lineHeight;
+      
+      if (row.note) {
+        y += 4;
+        ctx.font = getFont(14, false, false);
+        ctx.fillStyle = "#6b7280";
+        const noteLines = wrapCanvasText(ctx, `Catatan: ${row.note}`, nameWidth);
+        noteLines.forEach((line, i) => {
+          ctx.fillText(line, padding + qtyWidth, y + (i * (14 * 1.5)));
+        });
+        y += noteLines.length * (14 * 1.5);
+      }
     }
-    const lines = row.wrap ? wrapCanvasText(ctx,row.text,contentWidth) : [row.text];
-    lines.forEach(line=>{
-      const textWidth = ctx.measureText(line).width;
-      const x = row.align==="center" ? (width-textWidth)/2 : padding;
-      ctx.fillText(line,x,y);
-      y += lineHeight;
-    });
   });
 
   return canvas;
