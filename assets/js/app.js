@@ -320,11 +320,13 @@ function renderCashierProducts(){
   grid.innerHTML = visibleProducts.map(p=>{
     const isActive = p.id === currentId;
     const remaining = availableStock(p);
+    const priceFormatted = rupiah(p.sellPrice || 0);
+    const stockFormatted = `Stok: ${Number.isFinite(remaining) ? remaining : 0}`;
     return `<button class="product-tile ${isActive ? "active" : ""}" type="button" data-product-id="${escapeHtml(p.id)}" ${remaining<=0 ? "disabled" : ""}>
       <span class="product-tile-image"><img src="${productImage(p)}" alt="${escapeHtml(p.name)}" onerror="this.src='${fallbackImage(p.name)}'" /></span>
       <span class="product-name">${escapeHtml(p.name)}</span>
-      <strong>${rupiah(p.sellPrice)}</strong>
-      <small>Stok: ${remaining}</small>
+      <strong>${priceFormatted}</strong>
+      <small>${stockFormatted}</small>
     </button>`;
   }).join("");
 
